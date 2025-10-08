@@ -940,3 +940,4 @@ DETAIL:  Key (url)=(https://www.ptt.cc/bbs/Stock/M.1759883402.A.B94.html) alread
 2025-10-08 20:49:35 | ERROR    | __main__:start_scheduled_crawler:109 - Scheduled crawler error: module 'pytz' has no attribute 'timedelta'
 2025-10-08 20:54:35 | ERROR    | __main__:start_scheduled_crawler:109 - Scheduled crawler error: module 'pytz' has no attribute 'timedelta'
 2025-10-08 20:59:35 | ERROR    | __main__:start_scheduled_crawler:109 - Scheduled crawler error: module 'pytz' has no attribute 'timedelta'
+2025-10-08 21:04:35 | ERROR    | __main__:start_scheduled_crawler:109 - Scheduled crawler error: module 'pytz' has no attribute 'timedelta'
