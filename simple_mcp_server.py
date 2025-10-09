@@ -103,6 +103,14 @@ class SimpleMCPServer:
                         },
                         "required": ["author"]
                     }
+                },
+                {
+                    "name": "get_all_authors",
+                    "description": "取得所有作者列表",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                    }
                 }
             ]
         }
@@ -123,6 +131,8 @@ class SimpleMCPServer:
                 return self.analyzer.analyze_article(arguments["article_id"])
             elif tool_name == "analyze_author_profile":
                 return self.analyzer.get_author_investment_profile(arguments["author"])
+            elif tool_name == "get_all_authors":
+                return await self.get_all_authors()
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
         except Exception as e:
@@ -254,6 +264,36 @@ class SimpleMCPServer:
                 return {"contents": [{"uri": uri, "mimeType": "application/json", "text": json.dumps(data, ensure_ascii=False, indent=2)}]}
         else:
             return {"error": f"Unknown resource: {uri}"}
+    
+    async def get_all_authors(self) -> Dict[str, Any]:
+        """取得所有作者列表."""
+        try:
+            with db_manager.get_session() as session:
+                # 查詢所有作者及其文章數量
+                from sqlalchemy import func
+                authors = session.query(
+                    PTTArticle.author,
+                    func.count(PTTArticle.article_id).label('article_count'),
+                    func.max(PTTArticle.publish_time).label('last_activity')
+                ).group_by(PTTArticle.author).order_by(
+                    func.count(PTTArticle.article_id).desc()
+                ).all()
+                
+                authors_list = []
+                for author, count, last_activity in authors:
+                    authors_list.append({
+                        "author": author,
+                        "article_count": count,
+                        "last_activity": last_activity.isoformat() if last_activity else None
+                    })
+                
+                return {
+                    "authors": authors_list,
+                    "total": len(authors_list)
+                }
+        except Exception as e:
+            logger.error(f"Error getting all authors: {e}")
+            return {"error": str(e)}
     
     async def run(self):
         """執行簡化的 MCP Server."""

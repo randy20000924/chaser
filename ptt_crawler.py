@@ -207,9 +207,9 @@ class PTTCrawler:
                 
                 logger.info(f"Found article: {title[:50]}... by {author}")
                 
-                # 只處理目標作者的文章
-                if author not in self.target_authors:
-                    continue
+                # 記錄所有作者（不再只處理目標作者）
+                # if author not in self.target_authors:
+                #     continue
                 
                 articles.append({
                     'title': title,
@@ -393,7 +393,7 @@ class PTTCrawler:
         
         return list(set(stock_symbols))  # 去重
     
-    async def crawl_author_articles(self, author: str, max_articles: int = 50, since_days: int = 365) -> List[Dict]:
+    async def crawl_author_articles(self, author: str, max_articles: int = 50, since_days: int = 3) -> List[Dict]:
         """通過作者搜尋功能爬取特定作者的文章，僅限最近 since_days 天."""
         logger.info(f"Starting to crawl articles for author: {author}")
         
@@ -513,7 +513,7 @@ class PTTCrawler:
         
         for author in self.target_authors:
             logger.info(f"Crawling articles for author: {author}")
-            author_articles = await self.crawl_author_articles(author, max_articles=100, since_days=365)
+            author_articles = await self.crawl_author_articles(author, max_articles=100, since_days=3)
             all_articles.extend(author_articles)
             logger.info(f"Found {len(author_articles)} articles for {author}")
         

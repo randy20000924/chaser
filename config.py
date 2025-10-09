@@ -22,9 +22,11 @@ class Settings(BaseSettings):
     
     # Crawler Settings
     crawl_interval: int = 300  # seconds
-    max_articles_per_crawl: int = 50
+    max_articles_per_crawl: int = 100  # 增加文章數量以記錄更多作者
     enable_selenium: bool = False
     http_proxy_url: str | None = None  # e.g. http://127.0.0.1:8888
+    # 搜尋範圍設定（天數）
+    search_days: int = 3  # 搜尋最近3天
     request_min_delay_ms: int = 800
     request_max_delay_ms: int = 2500
     backoff_max_sleep_seconds: int = 20

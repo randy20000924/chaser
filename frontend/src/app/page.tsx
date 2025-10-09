@@ -112,7 +112,7 @@ export default function Home() {
                 placeholder="輸入作者名稱..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 onKeyPress={(e) => e.key === 'Enter' && searchAuthor()}
               />
             </div>
@@ -174,7 +174,13 @@ export default function Home() {
                           <Calendar className="h-4 w-4" />
                           {new Date(article.publish_time).toLocaleDateString()}
                         </span>
-                        <span>推文: {article.push_count}</span>
+                        <span>
+                          推文: {article.push_count >= 100 ? (
+                            <span className="text-red-600 font-bold">爆</span>
+                          ) : (
+                            article.push_count
+                          )}
+                        </span>
                       </div>
                     </div>
                     <div className="flex gap-2">

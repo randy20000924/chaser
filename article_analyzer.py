@@ -57,7 +57,7 @@ class ArticleAnalyzer:
             return self._analyze_content(article)
     
     def _analyze_content(self, article: PTTArticle) -> Dict:
-        """分析文章內容."""
+        """分析文章內容 - 簡化輸出格式."""
         content = article.content
         title = article.title
         
@@ -79,25 +79,40 @@ class ArticleAnalyzer:
         # 分析風險提示
         risks = self._extract_risks(content)
         
+        # 簡化輸出格式
         return {
-            "article_id": article.article_id,
-            "title": article.title,
             "author": article.author,
-            "publish_time": article.publish_time.isoformat(),
+            "date": article.publish_time.strftime('%Y-%m-%d') if article.publish_time else 'N/A',
             "url": article.url,
-            "push_count": article.push_count,
-            "analysis": {
-                "stocks": stocks,
-                "strategy": strategy,
-                "sentiment": sentiment,
-                "sectors": sectors,
-                "recommendations": recommendations,
-                "risks": risks,
-                "investment_thesis": self._extract_investment_thesis(content),
-                "price_targets": self._extract_price_targets(content),
-                "time_horizon": self._analyze_time_horizon(content)
-            }
+            "recommended_stocks": list(stocks.get('all', []))[:5],  # 最多5個推薦標的
+            "reason": self._generate_simple_reason(stocks, strategy, sentiment, sectors, risks)
         }
+    
+    def _generate_simple_reason(self, stocks: Dict, strategy: Dict, sentiment: Dict, sectors: List, risks: List) -> str:
+        """生成簡化的推薦原因."""
+        reasons = []
+        
+        # 基於策略
+        if strategy.get('buy_signals', 0) > strategy.get('sell_signals', 0):
+            reasons.append("看多訊號")
+        elif strategy.get('sell_signals', 0) > strategy.get('buy_signals', 0):
+            reasons.append("看空訊號")
+        
+        # 基於情感
+        if sentiment.get('positive', 0) > sentiment.get('negative', 0):
+            reasons.append("正面情緒")
+        elif sentiment.get('negative', 0) > sentiment.get('positive', 0):
+            reasons.append("負面情緒")
+        
+        # 基於產業
+        if sectors:
+            reasons.append(f"關注{sectors[0]}產業")
+        
+        # 基於風險
+        if risks:
+            reasons.append("注意風險")
+        
+        return "、".join(reasons) if reasons else "技術分析"
     
     def _extract_stocks(self, content: str) -> Dict:
         """提取股票代碼."""

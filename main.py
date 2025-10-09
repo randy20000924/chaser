@@ -64,8 +64,8 @@ class PTTStockCrawlerApp:
                 await asyncio.sleep(60)  # 錯誤後等待1分鐘再重試
     
     async def start_scheduled_crawler(self):
-        """啟動定時爬蟲服務（每天台灣時區早上8點執行）."""
-        logger.info("Starting scheduled crawler service (daily at 8:00 AM Taiwan time)...")
+        """啟動定時爬蟲服務（每天台灣時區下午3點執行）."""
+        logger.info("Starting scheduled crawler service (daily at 3:00 PM Taiwan time)...")
         
         # 設定台灣時區
         taiwan_tz = pytz.timezone('Asia/Taipei')
@@ -75,16 +75,16 @@ class PTTStockCrawlerApp:
                 # 取得台灣時間
                 now_taiwan = datetime.now(taiwan_tz)
                 current_time = now_taiwan.time()
-                target_time = time(8, 0)  # 早上8點
+                target_time = time(15, 0)  # 下午3點
                 
                 # 計算距離下次執行的時間
                 if current_time < target_time:
-                    # 今天還沒到8點，等待到今天8點
-                    next_run = now_taiwan.replace(hour=8, minute=0, second=0, microsecond=0)
+                    # 今天還沒到下午3點，等待到今天下午3點
+                    next_run = now_taiwan.replace(hour=15, minute=0, second=0, microsecond=0)
                 else:
-                    # 今天已經過了8點，等待到明天8點
+                    # 今天已經過了下午3點，等待到明天下午3點
                     from datetime import timedelta
-                    next_run = now_taiwan.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=1)
+                    next_run = now_taiwan.replace(hour=15, minute=0, second=0, microsecond=0) + timedelta(days=1)
                 
                 # 計算等待時間
                 wait_seconds = (next_run - now_taiwan).total_seconds()
