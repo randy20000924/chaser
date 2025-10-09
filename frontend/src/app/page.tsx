@@ -91,8 +91,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <TrendingUp className="h-8 w-8 text-blue-600" />
-              <h1 className="ml-2 text-xl font-semibold text-gray-900">PTT 股票分析</h1>
+              <User className="h-8 w-8 text-gray-600" />
+              <h1 className="ml-2 text-xl font-semibold text-black">PTT 股票分析</h1>
             </div>
             <div className="text-sm text-gray-500">
               每天下午3點自動更新
@@ -104,7 +104,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search Section */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">搜尋作者</h2>
+          <h2 className="text-lg font-medium text-black mb-4">搜尋作者</h2>
           <div className="flex gap-4">
             <div className="flex-1">
               <input
@@ -130,7 +130,7 @@ export default function Home() {
         {/* Authors List */}
         {authors.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">活躍作者</h2>
+            <h2 className="text-lg font-medium text-black mb-4">活躍作者</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {authors.slice(0, 12).map((author) => (
                 <div
@@ -143,9 +143,9 @@ export default function Home() {
                 >
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-500" />
-                    <span className="font-medium">{author.author}</span>
+                    <span className="font-medium text-black">{author.author}</span>
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">
+                  <div className="text-sm text-black mt-1">
                     {author.article_count} 篇文章
                   </div>
                 </div>
@@ -157,7 +157,7 @@ export default function Home() {
         {/* Articles List */}
         {articles.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">
+            <h2 className="text-lg font-medium text-black mb-4">
               {selectedAuthor} 的文章 ({articles.length} 篇)
             </h2>
             <div className="space-y-4">
@@ -168,8 +168,8 @@ export default function Home() {
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 mb-2">{article.title}</h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <h3 className="font-medium text-black mb-2">{article.title}</h3>
+                      <div className="flex items-center gap-4 text-sm text-black">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           {new Date(article.publish_time).toLocaleDateString()}
@@ -210,19 +210,19 @@ export default function Home() {
         {/* Analysis Result */}
         {analysis && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">分析結果</h2>
+            <h2 className="text-lg font-medium text-black mb-4">分析結果</h2>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">作者</div>
-                  <div className="font-medium">{analysis.author}</div>
+                  <div className="text-sm text-black mb-1">作者</div>
+                  <div className="font-medium text-black">{analysis.author}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">日期</div>
-                  <div className="font-medium">{analysis.date}</div>
+                  <div className="text-sm text-black mb-1">日期</div>
+                  <div className="font-medium text-black">{analysis.date}</div>
                 </div>
                 <div className="md:col-span-2">
-                  <div className="text-sm text-gray-600 mb-1">推薦標的</div>
+                  <div className="text-sm text-black mb-1">推薦標的</div>
                   <div className="flex flex-wrap gap-2">
                     {analysis.recommended_stocks.map((stock, index) => (
                       <span
@@ -235,8 +235,8 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="md:col-span-2">
-                  <div className="text-sm text-gray-600 mb-1">推薦原因</div>
-                  <div className="text-gray-900">{analysis.reason}</div>
+                  <div className="text-sm text-black mb-1">推薦原因</div>
+                  <div className="text-black">{analysis.reason}</div>
                 </div>
                 <div className="md:col-span-2">
                   <a
