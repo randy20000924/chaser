@@ -1,7 +1,7 @@
 #!/bin/bash
-# 自動同步腳本
+# 本地同步腳本 - 推送到 GitHub
 
-echo "🔄 開始同步到 VPS..."
+echo "🔄 開始同步到 GitHub..."
 
 # 檢查是否有變更
 if [ -n "$(git status --porcelain)" ]; then
@@ -17,11 +17,8 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "📤 推送到 GitHub..."
     git push origin main
     
-    # 在 VPS 上拉取更新
-    echo "📥 在 VPS 上拉取更新..."
-    ssh root@159.198.37.93 "cd /var/www/chaser && git pull origin main && pm2 restart all"
-    
-    echo "✅ 同步完成！"
+    echo "✅ 本地同步完成！VPS 將在下次檢查時自動更新"
+    echo "💡 VPS 每 2 分鐘檢查一次 GitHub 更新"
 else
     echo "ℹ️ 沒有變更需要同步"
 fi
