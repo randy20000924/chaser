@@ -23,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-analyzer = ArticleAnalyzer()
+# analyzer = ArticleAnalyzer()  # 移除全局實例
 
 @app.get("/")
 async def root():
@@ -119,7 +119,9 @@ async def analyze_article(request: Dict[str, Any]):
         if not article_id:
             raise HTTPException(status_code=400, detail="article_id is required")
         
+        analyzer = ArticleAnalyzer()  # 每次創建新實例
         result = analyzer.analyze_article(article_id)
+        logger.info(f"Analysis result for {article_id}: {result}")
         return result
         
     except Exception as e:

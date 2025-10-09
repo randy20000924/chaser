@@ -4,6 +4,7 @@
 import re
 import json
 from typing import List, Dict, Optional, Tuple
+import httpx
 from datetime import datetime
 from loguru import logger
 from database import db_manager
@@ -61,6 +62,16 @@ class ArticleAnalyzer:
         content = article.content
         title = article.title
         
+        # 若啟用 Ollama，優先走 LLM 分析路徑
+        try:
+            from config import settings
+            if getattr(settings, "enable_ollama", False):
+                llm = self._analyze_with_ollama(content=content, author=article.author, url=article.url, date=article.publish_time)
+                if isinstance(llm, dict) and llm.get("recommended_stocks"):
+                    return llm
+        except Exception as e:
+            logger.warning(f"Ollama analysis failed or disabled, fallback to rules. Reason: {e}")
+        
         # 提取股票代碼
         stocks = self._extract_stocks(content)
         
@@ -87,6 +98,40 @@ class ArticleAnalyzer:
             "recommended_stocks": list(stocks.get('mentioned_stocks', []))[:5],  # 最多5個推薦標的
             "reason": self._generate_simple_reason(stocks, strategy, sentiment, sectors, risks)
         }
+
+    def _analyze_with_ollama(self, content: str, author: str, url: str, date: Optional[datetime]) -> Dict:
+        """使用本地 Ollama 進行分析，返回既定 JSON 結構。"""
+        from config import settings
+        base = settings.ollama_base_url.rstrip("/")
+        model = settings.ollama_model
+        prompt = (
+            "請閱讀以下PTT文章內容，輸出JSON，欄位為: author, date(YYYY-MM-DD), url, "
+            "recommended_stocks(最多5個，台股代碼請用4位數字或明確代碼字串), reason(精簡條列說明推薦依據)。\n\n"
+            f"作者: {author}\nURL: {url}\n日期: {(date.strftime('%Y-%m-%d') if isinstance(date, datetime) else 'N/A')}\n\n"
+            f"內文:\n{content}\n\n"
+            "僅輸出JSON，不要額外敘述。"
+        )
+        payload = {"model": model, "prompt": prompt, "stream": False}
+        try:
+            with httpx.Client(timeout=30) as client:
+                resp = client.post(f"{base}/api/generate", json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+                # Ollama 回傳形如 {"response": "...文本..."}
+                raw = data.get("response", "").strip()
+                # 嘗試解析JSON
+                result = json.loads(raw)
+                # 正規化欄位
+                return {
+                    "author": result.get("author", author),
+                    "date": result.get("date", (date.strftime('%Y-%m-%d') if isinstance(date, datetime) else 'N/A')),
+                    "url": result.get("url", url),
+                    "recommended_stocks": result.get("recommended_stocks", [])[:5],
+                    "reason": result.get("reason", "")
+                }
+        except Exception as e:
+            logger.warning(f"Ollama call/parse error: {e}")
+            return {}
     
     def _generate_simple_reason(self, stocks: Dict, strategy: Dict, sentiment: Dict, sectors: List, risks: List) -> str:
         """生成簡化的推薦原因."""
@@ -160,7 +205,7 @@ class ArticleAnalyzer:
         us_pattern = r'\b([A-Z]{1,5})\b'
         us_matches = re.findall(us_pattern, content)
         # 過濾掉常見的英文單詞和技術術語
-        common_words = {'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'HAD', 'BY', 'WORD', 'BUT', 'WHAT', 'SOME', 'WE', 'IT', 'IS', 'OR', 'HAD', 'THE', 'OF', 'TO', 'AND', 'A', 'IN', 'IS', 'IT', 'YOU', 'THAT', 'HE', 'WAS', 'FOR', 'ON', 'ARE', 'AS', 'WITH', 'HIS', 'THEY', 'I', 'AT', 'BE', 'THIS', 'HAVE', 'FROM', 'OR', 'ONE', 'HAD', 'BY', 'WORD', 'BUT', 'NOT', 'WHAT', 'ALL', 'WERE', 'WE', 'WHEN', 'YOUR', 'CAN', 'SAID', 'THERE', 'EACH', 'WHICH', 'SHE', 'DO', 'HOW', 'THEIR', 'IF', 'WILL', 'UP', 'OTHER', 'ABOUT', 'OUT', 'MANY', 'THEN', 'THEM', 'THESE', 'SO', 'SOME', 'HER', 'WOULD', 'MAKE', 'LIKE', 'INTO', 'HIM', 'TIME', 'HAS', 'TWO', 'MORE', 'GO', 'NO', 'WAY', 'COULD', 'MY', 'THAN', 'FIRST', 'BEEN', 'CALL', 'WHO', 'ITS', 'NOW', 'FIND', 'LONG', 'DOWN', 'DAY', 'DID', 'GET', 'COME', 'MADE', 'MAY', 'PART', 'ATH', 'Q4', 'Q1', 'Q2', 'EPS', 'PE', 'DJI', 'AI', 'COBRA', 'RKLB', 'ONDS', 'AVAV', 'RCAT', 'PDYN'}
+        common_words = {'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'HAD', 'BY', 'WORD', 'BUT', 'WHAT', 'SOME', 'WE', 'IT', 'IS', 'OR', 'HAD', 'THE', 'OF', 'TO', 'AND', 'A', 'IN', 'IS', 'IT', 'YOU', 'THAT', 'HE', 'WAS', 'FOR', 'ON', 'ARE', 'AS', 'WITH', 'HIS', 'THEY', 'I', 'AT', 'BE', 'THIS', 'HAVE', 'FROM', 'OR', 'ONE', 'HAD', 'BY', 'WORD', 'BUT', 'NOT', 'WHAT', 'ALL', 'WERE', 'WE', 'WHEN', 'YOUR', 'CAN', 'SAID', 'THERE', 'EACH', 'WHICH', 'SHE', 'DO', 'HOW', 'THEIR', 'IF', 'WILL', 'UP', 'OTHER', 'ABOUT', 'OUT', 'MANY', 'THEN', 'THEM', 'THESE', 'SO', 'SOME', 'HER', 'WOULD', 'MAKE', 'LIKE', 'INTO', 'HIM', 'TIME', 'HAS', 'TWO', 'MORE', 'GO', 'NO', 'WAY', 'COULD', 'MY', 'THAN', 'FIRST', 'BEEN', 'CALL', 'WHO', 'ITS', 'NOW', 'FIND', 'LONG', 'DOWN', 'DAY', 'DID', 'GET', 'COME', 'MADE', 'MAY', 'PART', 'ATH', 'Q4', 'Q1', 'Q2', 'EPS', 'PE', 'DJI', 'AI', 'COBRA', 'RKLB', 'ONDS', 'AVAV', 'RCAT', 'PDYN', 'TOP', 'M', 'W', 'X', 'Y', 'Z'}
         stocks["us_stocks"] = list(set([match for match in us_matches if match not in common_words and len(match) <= 5]))
         
         # 提取港股代碼 (4-5位數字)

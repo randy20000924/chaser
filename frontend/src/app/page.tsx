@@ -91,8 +91,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <User className="h-8 w-8 text-gray-600" />
-              <h1 className="ml-2 text-xl font-semibold text-black">PTT 股票分析</h1>
+              <img 
+                src="/chaser-logo-nav.png" 
+                alt="Chaser Logo" 
+                className="h-8 w-auto"
+              />
+              <h1 className="ml-2 text-xl font-semibold text-black"></h1>
             </div>
             <div className="text-sm text-gray-500">
               每天下午3點自動更新

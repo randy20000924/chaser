@@ -38,6 +38,11 @@ class Settings(BaseSettings):
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
     ]
     
+    # LLM / Ollama
+    enable_ollama: bool = False
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1:8b"
+    
     # MCP Server
     mcp_server_host: str = "localhost"
     mcp_server_port: int = 8000
