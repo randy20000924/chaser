@@ -69,14 +69,18 @@ RANDOM_USER_AGENT=true
 ## 3. 初始化資料庫
 
 ```bash
-python init_db.py
+# 使用 Python 初始化資料庫
+python -c "from database import db_manager; db_manager.create_tables()"
 ```
 
 ## 4. 測試系統
 
 ```bash
-# 執行測試
-python test_crawler.py
+# 執行一次爬蟲測試
+python main.py --mode once
+
+# 查看資料庫內容
+python quick_query.py
 ```
 
 ## 5. 啟動服務
@@ -122,8 +126,11 @@ docker-compose down
 ## 7. 測試MCP連接
 
 ```bash
-# 測試MCP客戶端
-python test_mcp_client.py
+# 啟動MCP服務器
+python main.py --mode mcp
+
+# 在另一個終端測試查詢
+python quick_query.py
 ```
 
 ## 8. 監控和日誌
@@ -179,11 +186,31 @@ A:
 - 確認MCP依賴已正確安裝
 - 查看日誌檔案中的錯誤訊息
 
-## 10. 下一步
+## 10. 自動同步部署
+
+### 本地開發
+```bash
+# 修改程式碼後同步到VPS
+./sync.sh
+
+# 快速同步（緊急更新）
+./quick_sync.sh
+```
+
+### VPS設定
+```bash
+# 在VPS上設定自動同步
+cd /var/www/chaser
+chmod +x vps_sync.sh
+(crontab -l 2>/dev/null; echo "*/2 * * * * /var/www/chaser/vps_sync.sh >> /var/log/chaser_sync.log 2>&1") | crontab -
+```
+
+## 11. 下一步
 
 - 閱讀完整的 [README.md](README.md) 了解詳細功能
+- 閱讀 [SYNC_GUIDE.md](SYNC_GUIDE.md) 了解同步部署
 - 修改 `config.py` 自定義設定
-- 在 `data_processor.py` 中整合實際的LLM API
+- 在 `article_analyzer.py` 中整合實際的LLM API
 - 添加更多作者到追蹤列表
 
 ## 支援
@@ -191,4 +218,5 @@ A:
 如有問題，請查看：
 1. 日誌檔案：`logs/crawler.log`
 2. 完整文檔：`README.md`
-3. 測試腳本：`test_crawler.py`
+3. 同步指南：`SYNC_GUIDE.md`
+4. 快速查詢：`python quick_query.py`

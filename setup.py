@@ -10,7 +10,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="ptt-stock-crawler",
-    version="1.1.0",
+    version="1.2.0",
     author="PTT Stock Crawler Team",
     description="PTT股票版爬蟲系統，支援MCP整合和LLM分析",
     long_description=long_description,

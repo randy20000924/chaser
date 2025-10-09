@@ -1,6 +1,6 @@
 # PTT股票版爬蟲系統
 
-一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合和LLM分析。
+一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析和自動同步部署。
 
 ## 功能特色
 
@@ -8,14 +8,18 @@
 - 👥 **多作者追蹤**: 支援追蹤多個指定作者的文章
 - 🗄️ **資料庫儲存**: 使用PostgreSQL儲存結構化資料
 - 🔍 **MCP整合**: 提供MCP Server供LLM查詢和分析
-- 🤖 **LLM分析**: 支援文章分類、情感分析等AI功能
+- 🤖 **LLM分析**: 支援文章分類、情感分析、股票推薦等AI功能
 - ⚡ **異步處理**: 高效能的異步爬蟲架構
 - ⏰ **定時執行**: 支援每天台灣時區早上8點自動執行
 - 🛡️ **防爬機制**: 隨機UA、指數退避、Selenium後備、代理支援
+- 🔄 **自動同步**: 本地修改自動同步到VPS部署
+- 🌐 **VPS部署**: 支援Docker容器化部署
 
 ## 系統架構
 
 ```
+本地開發 → GitHub → VPS自動同步 → Docker部署
+    ↓
 PTT爬蟲 → 資料處理 → PostgreSQL → MCP Server → LLM Agent
 ```
 
@@ -143,22 +147,49 @@ with db_manager.get_session() as session:
 
 ```
 chaser/
-├── main.py              # 主應用程式
-├── config.py            # 配置管理
-├── models.py            # 資料庫模型
-├── database.py          # 資料庫連線
-├── ptt_crawler.py       # PTT爬蟲模組
-├── data_processor.py    # 資料處理和LLM整合
-├── mcp_server.py        # MCP Server
-├── requirements.txt     # 依賴清單
-└── README.md           # 說明文檔
+├── main.py                    # 主應用程式
+├── config.py                  # 配置管理
+├── models.py                  # 資料庫模型
+├── database.py                # 資料庫連線
+├── ptt_crawler.py             # PTT爬蟲模組
+├── data_processor.py          # 資料處理和LLM整合
+├── simple_mcp_server.py       # MCP Server
+├── article_analyzer.py        # 文章分析模組
+├── article_selector.py        # 文章選擇器
+├── quick_query.py             # 快速查詢工具
+├── view_output.py             # 輸出查看工具
+├── sync.sh                    # 本地同步腳本
+├── quick_sync.sh              # 快速同步腳本
+├── vps_sync.sh                # VPS同步腳本
+├── setup_vps_auto_sync.sh     # VPS自動同步設定
+├── SYNC_GUIDE.md              # 同步使用指南
+├── QUICKSTART.md              # 快速開始指南
+├── requirements.txt           # 依賴清單
+├── docker-compose.yml         # Docker Compose配置
+├── Dockerfile                 # Docker配置
+└── README.md                  # 說明文檔
 ```
 
 ### 添加新功能
 
 1. **新增作者追蹤**: 修改 `config.py` 中的 `target_authors`
 2. **自定義分類**: 修改 `data_processor.py` 中的 `LLMClassifier`
-3. **新增查詢工具**: 修改 `mcp_server.py` 中的工具列表
+3. **新增查詢工具**: 修改 `simple_mcp_server.py` 中的工具列表
+4. **新增分析功能**: 修改 `article_analyzer.py` 中的分析方法
+
+### 自動同步部署
+
+系統支援本地開發自動同步到VPS：
+
+```bash
+# 本地修改後同步
+./sync.sh
+
+# 快速同步（緊急更新）
+./quick_sync.sh
+```
+
+VPS會每2分鐘自動檢查GitHub更新並同步。
 
 ## 故障排除
 
@@ -198,6 +229,14 @@ MIT License
 歡迎提交Issue和Pull Request！
 
 ## 更新日誌
+
+### v1.2.0
+- 新增自動同步部署功能
+- 新增文章分析模組（股票推薦、情感分析）
+- 新增互動式文章選擇器
+- 新增快速查詢工具
+- 優化專案結構，移除不必要檔案
+- 新增VPS部署支援
 
 ### v1.1.0
 - 新增定時執行功能（每天台灣時區早上8點）
