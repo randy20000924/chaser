@@ -45,7 +45,21 @@ apt update && apt upgrade -y
 
 # 2. 安裝必要套件
 echo -e "${BLUE}🔧 安裝必要套件...${NC}"
-apt install -y curl wget git nginx certbot python3-certbot-nginx postgresql postgresql-contrib python3 python3-pip python3-venv nodejs npm docker.io docker-compose ufw
+
+# 先更新套件列表
+apt update
+
+# 安裝基礎套件
+apt install -y curl wget git nginx certbot python3-certbot-nginx postgresql postgresql-contrib python3 python3-pip python3-venv docker.io docker-compose ufw
+
+# 安裝 Node.js 和 npm (使用 NodeSource 官方源)
+echo -e "${BLUE}📦 安裝 Node.js...${NC}"
+curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+apt install -y nodejs
+
+# 驗證安裝
+node --version
+npm --version
 
 # 3. 啟動服務
 echo -e "${BLUE}🔄 啟動服務...${NC}"
