@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""文章分析模組 - 分析PTT文章中的投資標的和策略."""
+"""文章分析模組 - 分析PTT文章中的投資標的和策略，並將結果存儲到資料庫."""
 
 import re
 import json
@@ -13,7 +13,7 @@ from sqlalchemy import desc
 
 
 class ArticleAnalyzer:
-    """文章分析器."""
+    """文章分析器 - 用於爬蟲後處理和即時分析."""
     
     def __init__(self):
         self.stock_patterns = {
@@ -33,8 +33,59 @@ class ArticleAnalyzer:
             'sector_keywords': ['半導體', 'AI', '電動車', '新能源', '生技', '金融', '地產']
         }
     
-    def analyze_article(self, article_id: str) -> Dict:
-        """分析單篇文章."""
+    def process_crawled_articles(self, limit: int = None) -> Dict:
+        """處理已爬取但未分析的文章."""
+        logger.info("開始處理已爬取的文章...")
+        
+        with db_manager.get_session() as session:
+            # 查詢未分析的文章（analysis_result 為 NULL 或空）
+            query = session.query(PTTArticle).filter(
+                (PTTArticle.analysis_result.is_(None)) | 
+                (PTTArticle.analysis_result == "")
+            )
+            
+            if limit:
+                query = query.limit(limit)
+            
+            articles = query.all()
+            total_articles = len(articles)
+            
+            if total_articles == 0:
+                logger.info("沒有需要處理的文章")
+                return {"processed": 0, "errors": 0}
+            
+            logger.info(f"找到 {total_articles} 篇需要處理的文章")
+            
+            processed = 0
+            errors = 0
+            
+            for article in articles:
+                try:
+                    # 分析文章
+                    analysis_result = self._analyze_content(article)
+                    
+                    # 將分析結果存儲到資料庫
+                    article.analysis_result = json.dumps(analysis_result, ensure_ascii=False)
+                    article.analysis_time = datetime.now()
+                    
+                    processed += 1
+                    
+                    if processed % 10 == 0:
+                        logger.info(f"已處理 {processed}/{total_articles} 篇文章")
+                        
+                except Exception as e:
+                    logger.error(f"處理文章 {article.article_id} 失敗: {e}")
+                    errors += 1
+                    continue
+            
+            # 提交所有更改
+            session.commit()
+            
+            logger.info(f"文章處理完成: 成功 {processed} 篇, 錯誤 {errors} 篇")
+            return {"processed": processed, "errors": errors}
+    
+    def get_article_analysis(self, article_id: str) -> Dict:
+        """從資料庫獲取文章分析結果."""
         with db_manager.get_session() as session:
             article = session.query(PTTArticle).filter(
                 PTTArticle.article_id == article_id
@@ -43,19 +94,63 @@ class ArticleAnalyzer:
             if not article:
                 return {"error": "文章不存在"}
             
-            return self._analyze_content(article)
+            # 如果已有分析結果，直接返回
+            if article.analysis_result:
+                try:
+                    return json.loads(article.analysis_result)
+                except json.JSONDecodeError:
+                    logger.warning(f"文章 {article_id} 的分析結果格式錯誤，重新分析")
+            
+            # 如果沒有分析結果，進行即時分析
+            logger.info(f"文章 {article_id} 沒有分析結果，進行即時分析")
+            analysis_result = self._analyze_content(article)
+            
+            # 保存分析結果到資料庫
+            try:
+                article.analysis_result = json.dumps(analysis_result, ensure_ascii=False)
+                article.analysis_time = datetime.now()
+                session.commit()
+            except Exception as e:
+                logger.error(f"保存分析結果失敗: {e}")
+            
+            return analysis_result
     
-    def analyze_article_by_url(self, url: str) -> Dict:
-        """根據URL分析文章."""
+    def get_author_articles_with_analysis(self, author: str, limit: int = 20) -> Dict:
+        """獲取作者的文章及其分析結果."""
         with db_manager.get_session() as session:
-            article = session.query(PTTArticle).filter(
-                PTTArticle.url == url
-            ).first()
+            articles = session.query(PTTArticle).filter(
+                PTTArticle.author == author
+            ).order_by(desc(PTTArticle.publish_time)).limit(limit).all()
             
-            if not article:
-                return {"error": "文章不存在"}
+            if not articles:
+                return {"error": "找不到該作者的文章"}
             
-            return self._analyze_content(article)
+            result = []
+            for article in articles:
+                article_data = {
+                    "article_id": article.article_id,
+                    "title": article.title,
+                    "author": article.author,
+                    "publish_time": article.publish_time.isoformat() if article.publish_time else None,
+                    "url": article.url,
+                    "push_count": article.push_count,
+                    "analysis": None
+                }
+                
+                # 如果有分析結果，解析並添加
+                if article.analysis_result:
+                    try:
+                        article_data["analysis"] = json.loads(article.analysis_result)
+                    except json.JSONDecodeError:
+                        logger.warning(f"文章 {article.article_id} 的分析結果格式錯誤")
+                
+                result.append(article_data)
+            
+            return {
+                "author": author,
+                "articles": result,
+                "total": len(result)
+            }
     
     def _analyze_content(self, article: PTTArticle) -> Dict:
         """分析文章內容 - 簡化輸出格式."""
@@ -66,7 +161,12 @@ class ArticleAnalyzer:
         try:
             from config import settings
             if getattr(settings, "enable_ollama", False):
-                llm = self._analyze_with_ollama(content=content, author=article.author, url=article.url, date=article.publish_time)
+                llm = self._analyze_with_ollama(
+                    content=content, 
+                    author=article.author, 
+                    url=article.url, 
+                    date=article.publish_time
+                )
                 if isinstance(llm, dict) and llm.get("recommended_stocks"):
                     return llm
         except Exception as e:
@@ -107,7 +207,7 @@ class ArticleAnalyzer:
         prompt = (
             "你是一個專業的股票分析師。請分析以下PTT股票版文章，提取投資標的和推薦原因。\n\n"
             "分析重點：\n"
-            "1. 找出文章推薦的股票代碼（台股4位數字，如2429）\n"
+            "1. 找出文章推薦的股票代碼（台股為數字代碼並附帶公司名稱，如台積電2330，美股直接使用代碼，如AAPL）\n"
             "2. 分析推薦原因（技術面、基本面、消息面等）\n"
             "3. 判斷投資方向（看多/看空）\n\n"
             f"文章資訊：\n"
@@ -125,7 +225,8 @@ class ArticleAnalyzer:
         )
         payload = {"model": model, "prompt": prompt, "stream": False}
         try:
-            with httpx.Client(timeout=30) as client:
+            # 提高超時，並重試一次
+            with httpx.Client(timeout=httpx.Timeout(60.0)) as client:
                 resp = client.post(f"{base}/api/generate", json=payload)
                 resp.raise_for_status()
                 data = resp.json()
@@ -133,12 +234,24 @@ class ArticleAnalyzer:
                 raw = data.get("response", "").strip()
                 # 嘗試解析JSON
                 result = json.loads(raw)
+                # 後處理：確保 recommended_stocks 只包含有效的股票代碼
+                stocks = result.get("recommended_stocks", [])
+                valid_stocks = []
+                for stock in stocks:
+                    if isinstance(stock, str):
+                        # 台股4位數代碼
+                        if re.match(r'^\d{4}$', stock):
+                            valid_stocks.append(stock)
+                        # 美股英文字母代碼 (1-5個字母)
+                        elif re.match(r'^[A-Z]{1,5}$', stock):
+                            valid_stocks.append(stock)
+                
                 # 正規化欄位
                 return {
                     "author": result.get("author", author),
                     "date": result.get("date", (date.strftime('%Y-%m-%d') if isinstance(date, datetime) else 'N/A')),
                     "url": result.get("url", url),
-                    "recommended_stocks": result.get("recommended_stocks", [])[:5],
+                    "recommended_stocks": valid_stocks[:5],
                     "reason": result.get("reason", "")
                 }
         except Exception as e:
@@ -365,166 +478,39 @@ class ArticleAnalyzer:
         
         return list(set(risks))
     
-    def _extract_investment_thesis(self, content: str) -> str:
-        """提取投資論述."""
-        # 尋找關鍵論述段落
-        thesis_indicators = ['因為', '所以', '因此', '由於', '基於', '根據']
-        
-        for indicator in thesis_indicators:
-            if indicator in content:
-                # 提取包含該指示詞的句子
-                sentences = content.split('。')
-                for sentence in sentences:
-                    if indicator in sentence:
-                        return sentence.strip()
-        
-        return "未找到明確投資論述"
-    
-    def _extract_price_targets(self, content: str) -> List[Dict]:
-        """提取價格目標."""
-        price_targets = []
-        
-        # 尋找價格目標模式
-        patterns = [
-            r'目標價\s*(\d+(?:\.\d+)?)',
-            r'看到\s*(\d+(?:\.\d+)?)',
-            r'上看\s*(\d+(?:\.\d+)?)',
-            r'(\d+(?:\.\d+)?)\s*元'
-        ]
-        
-        for pattern in patterns:
-            matches = re.findall(pattern, content)
-            for match in matches:
-                price_targets.append({
-                    "price": float(match),
-                    "context": "價格目標"
-                })
-        
-        return price_targets
-    
-    def _analyze_time_horizon(self, content: str) -> str:
-        """分析投資時間框架."""
-        if any(word in content for word in ['短期', '近期', '這週', '這個月']):
-            return "短期"
-        elif any(word in content for word in ['中期', '幾個月', '半年']):
-            return "中期"
-        elif any(word in content for word in ['長期', '幾年', '長期持有']):
-            return "長期"
-        else:
-            return "未明確"
-    
-    def batch_analyze_articles(self, author: str = None, limit: int = 10) -> List[Dict]:
-        """批量分析文章."""
+    def get_analysis_statistics(self) -> Dict:
+        """獲取分析統計信息."""
         with db_manager.get_session() as session:
-            query = session.query(PTTArticle)
-            
-            if author:
-                query = query.filter(PTTArticle.author == author)
-            
-            articles = query.order_by(desc(PTTArticle.publish_time)).limit(limit).all()
-            
-            results = []
-            for article in articles:
-                try:
-                    analysis = self._analyze_content(article)
-                    results.append(analysis)
-                except Exception as e:
-                    logger.error(f"分析文章 {article.article_id} 失敗: {e}")
-                    continue
-            
-            return results
-    
-    def get_author_investment_profile(self, author: str) -> Dict:
-        """分析作者投資偏好."""
-        with db_manager.get_session() as session:
-            articles = session.query(PTTArticle).filter(
-                PTTArticle.author == author
-            ).order_by(desc(PTTArticle.publish_time)).all()
-            
-            if not articles:
-                return {"error": "找不到該作者的文章"}
-            
-            # 統計分析
-            all_stocks = []
-            all_sectors = []
-            all_sentiments = []
-            
-            for article in articles:
-                analysis = self._analyze_content(article)
-                all_stocks.extend(analysis["analysis"]["stocks"]["mentioned_stocks"])
-                all_sectors.extend(analysis["analysis"]["sectors"])
-                all_sentiments.append(analysis["analysis"]["sentiment"]["sentiment"])
-            
-            # 計算統計
-            stock_frequency = {}
-            for stock in all_stocks:
-                stock_frequency[stock] = stock_frequency.get(stock, 0) + 1
-            
-            sector_frequency = {}
-            for sector in all_sectors:
-                sector_frequency[sector] = sector_frequency.get(sector, 0) + 1
-            
-            sentiment_frequency = {}
-            for sentiment in all_sentiments:
-                sentiment_frequency[sentiment] = sentiment_frequency.get(sentiment, 0) + 1
+            total_articles = session.query(PTTArticle).count()
+            analyzed_articles = session.query(PTTArticle).filter(
+                PTTArticle.analysis_result.isnot(None),
+                PTTArticle.analysis_result != ""
+            ).count()
             
             return {
-                "author": author,
-                "total_articles": len(articles),
-                "favorite_stocks": sorted(stock_frequency.items(), key=lambda x: x[1], reverse=True)[:10],
-                "favorite_sectors": sorted(sector_frequency.items(), key=lambda x: x[1], reverse=True)[:5],
-                "sentiment_distribution": sentiment_frequency,
-                "investment_style": self._determine_investment_style(all_sectors, all_sentiments)
+                "total_articles": total_articles,
+                "analyzed_articles": analyzed_articles,
+                "pending_articles": total_articles - analyzed_articles,
+                "analysis_rate": f"{(analyzed_articles / total_articles * 100):.1f}%" if total_articles > 0 else "0%"
             }
-    
-    def _determine_investment_style(self, sectors: List[str], sentiments: List[str]) -> str:
-        """判斷投資風格."""
-        if '半導體' in sectors and 'AI' in sectors:
-            return "科技成長型"
-        elif '新能源' in sectors and '核能' in sectors:
-            return "能源轉型型"
-        elif '太空科技' in sectors:
-            return "前沿科技型"
-        elif sentiments.count('positive') > sentiments.count('negative'):
-            return "樂觀進取型"
-        else:
-            return "穩健保守型"
 
 
 def main():
     """測試分析功能."""
     analyzer = ArticleAnalyzer()
     
-    # 分析特定文章
-    print("🔍 分析 mrp 的最新文章...")
-    analysis = analyzer.analyze_article_by_url("https://www.ptt.cc/bbs/Stock/M.1759822323.A.E44.html")
+    # 測試處理已爬取的文章
+    print("🔍 開始處理已爬取的文章...")
+    result = analyzer.process_crawled_articles(limit=5)
+    print(f"處理結果: {result}")
     
-    if "error" not in analysis:
-        print(f"📰 文章: {analysis['title']}")
-        print(f"作者: {analysis['author']}")
-        print(f"推文數: {analysis['push_count']}")
-        print()
-        
-        print("📊 分析結果:")
-        print(f"股票代碼: {analysis['analysis']['stocks']['mentioned_stocks']}")
-        print(f"投資策略: {analysis['analysis']['strategy']['strategy_type']}")
-        print(f"情感傾向: {analysis['analysis']['sentiment']['sentiment']}")
-        print(f"產業類別: {analysis['analysis']['sectors']}")
-        print(f"投資建議: {len(analysis['analysis']['recommendations'])} 項")
-        print(f"風險提示: {analysis['analysis']['risks']}")
-        print(f"投資論述: {analysis['analysis']['investment_thesis']}")
-        print(f"時間框架: {analysis['analysis']['time_horizon']}")
-    
-    # 分析作者投資偏好
-    print("\n👤 分析 mrp 的投資偏好...")
-    profile = analyzer.get_author_investment_profile("mrp")
-    
-    if "error" not in profile:
-        print(f"總文章數: {profile['total_articles']}")
-        print(f"偏好股票: {profile['favorite_stocks'][:5]}")
-        print(f"偏好產業: {profile['favorite_sectors']}")
-        print(f"情感分布: {profile['sentiment_distribution']}")
-        print(f"投資風格: {profile['investment_style']}")
+    # 測試獲取分析統計
+    print("\n📊 分析統計:")
+    stats = analyzer.get_analysis_statistics()
+    print(f"總文章數: {stats['total_articles']}")
+    print(f"已分析: {stats['analyzed_articles']}")
+    print(f"待分析: {stats['pending_articles']}")
+    print(f"分析率: {stats['analysis_rate']}")
 
 
 if __name__ == "__main__":

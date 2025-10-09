@@ -42,6 +42,10 @@ class PTTArticle(Base):
     is_processed = Column(Boolean, default=False)
     is_relevant = Column(Boolean, default=True)
     
+    # 分析結果
+    analysis_result = Column(Text)  # JSON格式的分析結果
+    analysis_time = Column(DateTime)  # 分析時間
+    
     # 建立索引
     __table_args__ = (
         Index('idx_author_time', 'author', 'publish_time'),

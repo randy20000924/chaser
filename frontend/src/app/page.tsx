@@ -16,6 +16,7 @@ interface Article {
   publish_time: string;
   url: string;
   push_count: number;
+  analysis?: Analysis;
 }
 
 interface Analysis {
@@ -30,7 +31,6 @@ export default function Home() {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [selectedAuthor, setSelectedAuthor] = useState('');
   const [articles, setArticles] = useState<Article[]>([]);
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -54,7 +54,13 @@ export default function Home() {
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/authors?author=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch('/api/authors/articles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ author: searchQuery }),
+      });
       const data = await response.json();
       setArticles(data.articles || []);
       setSelectedAuthor(searchQuery);
@@ -65,24 +71,6 @@ export default function Home() {
     }
   };
 
-  const analyzeArticle = async (articleId: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ articleId }),
-      });
-      const data = await response.json();
-      setAnalysis(data);
-    } catch (error) {
-      console.error('Error analyzing article:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,13 +152,13 @@ export default function Home() {
             <h2 className="text-lg font-medium text-black mb-4">
               {selectedAuthor} 的文章 ({articles.length} 篇)
             </h2>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {articles.map((article) => (
                 <div
                   key={article.article_id}
                   className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <h3 className="font-medium text-black mb-2">{article.title}</h3>
                       <div className="flex items-center gap-4 text-sm text-black">
@@ -196,67 +184,39 @@ export default function Home() {
                       >
                         <ExternalLink className="h-4 w-4" />
                       </a>
-                      <button
-                        onClick={() => analyzeArticle(article.article_id)}
-                        disabled={loading}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        分析
-                      </button>
                     </div>
                   </div>
+                  
+                  {/* 分析結果 */}
+                  {article.analysis && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-sm text-black mb-1">推薦標的</div>
+                          <div className="flex flex-wrap gap-1">
+                            {article.analysis.recommended_stocks.map((stock, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded"
+                              >
+                                {stock}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-black mb-1">推薦原因</div>
+                          <div className="text-black text-sm">{article.analysis.reason}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Analysis Result */}
-        {analysis && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-medium text-black mb-4">分析結果</h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-black mb-1">作者</div>
-                  <div className="font-medium text-black">{analysis.author}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-black mb-1">日期</div>
-                  <div className="font-medium text-black">{analysis.date}</div>
-                </div>
-                <div className="md:col-span-2">
-                  <div className="text-sm text-black mb-1">推薦標的</div>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.recommended_stocks.map((stock, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded"
-                      >
-                        {stock}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="md:col-span-2">
-                  <div className="text-sm text-black mb-1">推薦原因</div>
-                  <div className="text-black">{analysis.reason}</div>
-                </div>
-                <div className="md:col-span-2">
-                  <a
-                    href={analysis.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    查看原文
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
