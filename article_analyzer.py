@@ -105,11 +105,23 @@ class ArticleAnalyzer:
         base = settings.ollama_base_url.rstrip("/")
         model = settings.ollama_model
         prompt = (
-            "請閱讀以下PTT文章內容，輸出JSON，欄位為: author, date(YYYY-MM-DD), url, "
-            "recommended_stocks(最多5個，台股代碼請用4位數字或明確代碼字串), reason(精簡條列說明推薦依據)。\n\n"
-            f"作者: {author}\nURL: {url}\n日期: {(date.strftime('%Y-%m-%d') if isinstance(date, datetime) else 'N/A')}\n\n"
-            f"內文:\n{content}\n\n"
-            "僅輸出JSON，不要額外敘述。"
+            "你是一個專業的股票分析師。請分析以下PTT股票版文章，提取投資標的和推薦原因。\n\n"
+            "分析重點：\n"
+            "1. 找出文章推薦的股票代碼（台股4位數字，如2429）\n"
+            "2. 分析推薦原因（技術面、基本面、消息面等）\n"
+            "3. 判斷投資方向（看多/看空）\n\n"
+            f"文章資訊：\n"
+            f"作者: {author}\n"
+            f"URL: {url}\n"
+            f"日期: {(date.strftime('%Y-%m-%d') if isinstance(date, datetime) else 'N/A')}\n\n"
+            f"文章內容：\n{content}\n\n"
+            "請輸出JSON格式，包含以下欄位：\n"
+            "- author: 作者名稱\n"
+            "- date: 發文日期 (YYYY-MM-DD)\n"
+            "- url: 文章連結\n"
+            "- recommended_stocks: 推薦的股票代碼陣列（最多5個）\n"
+            "- reason: 推薦原因（簡潔說明，如：技術面突破、基本面改善、消息面利多等）\n\n"
+            "只輸出JSON，不要其他文字。"
         )
         payload = {"model": model, "prompt": prompt, "stream": False}
         try:
