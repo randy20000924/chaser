@@ -1,0 +1,24 @@
+<svg width="120" height="32" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Chaser Text -->
+  <text x="0" y="24" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#2C5F5D">
+    Chaser
+  </text>
+  
+  <!-- C letter with green chart inside -->
+  <g transform="translate(2, 2)">
+    <!-- Green area inside C -->
+    <rect x="0" y="4" width="8" height="16" fill="#4CAF50" rx="1"/>
+    <!-- Chart arrow inside C -->
+    <path d="M2 8 L4 6 L6 4 L8 2" stroke="#2E7D32" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M6 2 L8 2 L8 4" stroke="#2E7D32" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Rocket icon -->
+  <g transform="translate(100, 4)">
+    <!-- Rocket body -->
+    <path d="M8 4 L12 8 L8 12 L4 8 Z" fill="#2C5F5D"/>
+    <!-- Rocket flames -->
+    <path d="M6 12 L8 16 L10 12" fill="#4CAF50"/>
+    <path d="M7 12 L8 15 L9 12" fill="#66BB6A"/>
+  </g>
+</svg>
