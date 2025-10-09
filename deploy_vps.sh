@@ -232,10 +232,10 @@ ufw --force enable
 # 15. 創建系統服務
 echo -e "${BLUE}⚙️ 創建系統服務...${NC}"
 
-# 後端服務
+# 後端服務（只運行MCP服務器）
 cat > /etc/systemd/system/chaser-backend.service << EOF
 [Unit]
-Description=Chaser Backend Service
+Description=Chaser Backend Service (MCP Server)
 After=network.target postgresql.service
 
 [Service]
@@ -243,9 +243,28 @@ Type=simple
 User=root
 WorkingDirectory=$PROJECT_DIR
 Environment=PATH=$PROJECT_DIR/venv/bin
-ExecStart=$PROJECT_DIR/venv/bin/python main.py --mode both
+ExecStart=$PROJECT_DIR/venv/bin/python main.py --mode mcp
 Restart=always
 RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 爬蟲服務（定時執行）
+cat > /etc/systemd/system/chaser-crawler.service << EOF
+[Unit]
+Description=Chaser Crawler Service
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=$PROJECT_DIR
+Environment=PATH=$PROJECT_DIR/venv/bin
+ExecStart=$PROJECT_DIR/venv/bin/python main.py --mode once
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -271,7 +290,25 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-# 16. 啟動服務
+# 16. 設置定時任務
+echo -e "${BLUE}⏰ 設置定時任務...${NC}"
+
+# 創建定時爬蟲腳本
+cat > /opt/chaser/scheduled_crawler.sh << 'EOF'
+#!/bin/bash
+cd /opt/chaser
+source venv/bin/activate
+echo "$(date): 開始定時爬蟲..." >> /var/log/chaser-crawler.log
+python main.py --mode once >> /var/log/chaser-crawler.log 2>&1
+echo "$(date): 定時爬蟲完成" >> /var/log/chaser-crawler.log
+EOF
+
+chmod +x /opt/chaser/scheduled_crawler.sh
+
+# 設置每天下午3點執行爬蟲（台灣時間）
+(crontab -l 2>/dev/null | grep -v scheduled_crawler.sh; echo "0 7 * * * /opt/chaser/scheduled_crawler.sh") | crontab -
+
+# 17. 啟動服務
 echo -e "${BLUE}🚀 啟動服務...${NC}"
 systemctl daemon-reload
 systemctl enable chaser-backend
@@ -309,6 +346,7 @@ echo -e "${BLUE}📋 服務狀態:${NC}"
 echo "後端: systemctl status chaser-backend"
 echo "前端: systemctl status chaser-frontend"
 echo "Nginx: systemctl status nginx"
+echo "定時任務: crontab -l"
 echo ""
 echo -e "${BLUE}🌐 訪問地址:${NC}"
 echo "http://$DOMAIN (HTTP)"
@@ -317,6 +355,7 @@ echo ""
 echo -e "${BLUE}📝 日誌查看:${NC}"
 echo "後端日誌: journalctl -u chaser-backend -f"
 echo "前端日誌: journalctl -u chaser-frontend -f"
+echo "爬蟲日誌: tail -f /var/log/chaser-crawler.log"
 echo "Nginx日誌: tail -f /var/log/nginx/access.log"
 echo "同步日誌: tail -f /var/log/chaser-sync.log"
 echo ""
