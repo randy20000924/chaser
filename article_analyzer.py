@@ -84,7 +84,7 @@ class ArticleAnalyzer:
             "author": article.author,
             "date": article.publish_time.strftime('%Y-%m-%d') if article.publish_time else 'N/A',
             "url": article.url,
-            "recommended_stocks": list(stocks.get('all', []))[:5],  # 最多5個推薦標的
+            "recommended_stocks": list(stocks.get('mentioned_stocks', []))[:5],  # 最多5個推薦標的
             "reason": self._generate_simple_reason(stocks, strategy, sentiment, sectors, risks)
         }
     
@@ -92,16 +92,30 @@ class ArticleAnalyzer:
         """生成簡化的推薦原因."""
         reasons = []
         
+        # 基於股票代碼數量
+        stock_count = len(stocks.get('mentioned_stocks', []))
+        if stock_count > 0:
+            if stock_count == 1:
+                reasons.append(f"推薦標的: {stocks['mentioned_stocks'][0]}")
+            else:
+                reasons.append(f"推薦{stock_count}個標的")
+        
         # 基於策略
-        if strategy.get('buy_signals', 0) > strategy.get('sell_signals', 0):
+        buy_signals = len(strategy.get('buy_signals', []))
+        sell_signals = len(strategy.get('sell_signals', []))
+        
+        if buy_signals > sell_signals:
             reasons.append("看多訊號")
-        elif strategy.get('sell_signals', 0) > strategy.get('buy_signals', 0):
+        elif sell_signals > buy_signals:
             reasons.append("看空訊號")
         
         # 基於情感
-        if sentiment.get('positive', 0) > sentiment.get('negative', 0):
+        positive = sentiment.get('positive', 0)
+        negative = sentiment.get('negative', 0)
+        
+        if positive > negative:
             reasons.append("正面情緒")
-        elif sentiment.get('negative', 0) > sentiment.get('positive', 0):
+        elif negative > positive:
             reasons.append("負面情緒")
         
         # 基於產業
@@ -111,6 +125,10 @@ class ArticleAnalyzer:
         # 基於風險
         if risks:
             reasons.append("注意風險")
+        
+        # 如果沒有具體原因，嘗試從內容中提取關鍵信息
+        if not reasons:
+            reasons.append("技術分析")
         
         return "、".join(reasons) if reasons else "技術分析"
     
@@ -123,17 +141,38 @@ class ArticleAnalyzer:
             "mentioned_stocks": []
         }
         
-        # 提取美股代碼
-        us_matches = re.findall(self.stock_patterns['us_stocks'], content)
-        stocks["us_stocks"] = list(set([match for match in us_matches if len(match) <= 5]))
+        # 改進的台股代碼提取 - 4位數字，排除年份和常見數字
+        tw_pattern = r'\b([0-9]{4})\b'
+        tw_matches = re.findall(tw_pattern, content)
         
-        # 提取台股代碼
-        tw_matches = re.findall(self.stock_patterns['tw_stocks'], content)
-        stocks["tw_stocks"] = list(set([match for match in tw_matches if not match.startswith(('20', '19', '0', '1'))]))
+        # 過濾掉年份和常見數字
+        filtered_tw = []
+        for match in tw_matches:
+            # 排除年份 (2020-2030)
+            if not (2020 <= int(match) <= 2030):
+                # 排除常見的數字序列和技術規格
+                if not match in ['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '3120', '2500', '1230', '1070', '1090', '1330', '1575', '8000', '5800', '3000', '1000', '2000', '10000', '8550', '1400', '2800', '5600']:
+                    filtered_tw.append(match)
         
-        # 提取港股代碼
-        hk_matches = re.findall(self.stock_patterns['hk_stocks'], content)
-        stocks["hk_stocks"] = list(set([match for match in hk_matches if len(match) >= 4]))
+        stocks["tw_stocks"] = list(set(filtered_tw))
+        
+        # 提取美股代碼 (1-5個字母)
+        us_pattern = r'\b([A-Z]{1,5})\b'
+        us_matches = re.findall(us_pattern, content)
+        # 過濾掉常見的英文單詞和技術術語
+        common_words = {'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'HAD', 'BY', 'WORD', 'BUT', 'WHAT', 'SOME', 'WE', 'IT', 'IS', 'OR', 'HAD', 'THE', 'OF', 'TO', 'AND', 'A', 'IN', 'IS', 'IT', 'YOU', 'THAT', 'HE', 'WAS', 'FOR', 'ON', 'ARE', 'AS', 'WITH', 'HIS', 'THEY', 'I', 'AT', 'BE', 'THIS', 'HAVE', 'FROM', 'OR', 'ONE', 'HAD', 'BY', 'WORD', 'BUT', 'NOT', 'WHAT', 'ALL', 'WERE', 'WE', 'WHEN', 'YOUR', 'CAN', 'SAID', 'THERE', 'EACH', 'WHICH', 'SHE', 'DO', 'HOW', 'THEIR', 'IF', 'WILL', 'UP', 'OTHER', 'ABOUT', 'OUT', 'MANY', 'THEN', 'THEM', 'THESE', 'SO', 'SOME', 'HER', 'WOULD', 'MAKE', 'LIKE', 'INTO', 'HIM', 'TIME', 'HAS', 'TWO', 'MORE', 'GO', 'NO', 'WAY', 'COULD', 'MY', 'THAN', 'FIRST', 'BEEN', 'CALL', 'WHO', 'ITS', 'NOW', 'FIND', 'LONG', 'DOWN', 'DAY', 'DID', 'GET', 'COME', 'MADE', 'MAY', 'PART', 'ATH', 'Q4', 'Q1', 'Q2', 'EPS', 'PE', 'DJI', 'AI', 'COBRA', 'RKLB', 'ONDS', 'AVAV', 'RCAT', 'PDYN'}
+        stocks["us_stocks"] = list(set([match for match in us_matches if match not in common_words and len(match) <= 5]))
+        
+        # 提取港股代碼 (4-5位數字)
+        hk_pattern = r'\b([0-9]{4,5})\b'
+        hk_matches = re.findall(hk_pattern, content)
+        # 過濾掉技術規格數字
+        filtered_hk = []
+        for match in hk_matches:
+            if len(match) >= 4 and not (2020 <= int(match) <= 2030):
+                if not match in ['3120', '2500', '1230', '1070', '1090', '1330', '1575', '8000', '5800', '3000', '1000', '2000', '10000', '8550', '1400', '2800', '5600']:
+                    filtered_hk.append(match)
+        stocks["hk_stocks"] = list(set(filtered_hk))
         
         # 合併所有股票
         all_stocks = stocks["us_stocks"] + stocks["tw_stocks"] + stocks["hk_stocks"]
