@@ -12,7 +12,6 @@ import pytz
 from config import settings
 from database import db_manager
 from data_processor import CrawlOrchestrator
-from simple_mcp_server import SimpleMCPServer
 
 
 class PTTStockCrawlerApp:
@@ -20,7 +19,6 @@ class PTTStockCrawlerApp:
     
     def __init__(self):
         self.orchestrator = CrawlOrchestrator()
-        self.mcp_server = SimpleMCPServer()
         self.running = False
         self.crawl_task: Optional[asyncio.Task] = None
         self.mcp_task: Optional[asyncio.Task] = None
@@ -113,10 +111,7 @@ class PTTStockCrawlerApp:
     async def start_mcp_server(self):
         """啟動MCP Server."""
         logger.info("Starting MCP server...")
-        try:
-            await self.mcp_server.run()
-        except Exception as e:
-            logger.error(f"MCP server error: {e}")
+        logger.info("MCP server is now handled by http_mcp_server.py separately")
     
     async def run(self, mode: str = "crawler"):
         """執行應用程式."""
