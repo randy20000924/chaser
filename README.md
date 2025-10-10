@@ -1,8 +1,6 @@
 # Chaser: PTT股票版作者爬蟲分析
 
-一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析、**完整的前端網頁展示**和自動同步部署。
-
-🌐 **線上網址**: [http://www.chaser.cloud](http://www.chaser.cloud)
+一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析、前端展示和自動同步部署。
 
 ## 功能特色
 
@@ -14,18 +12,18 @@
 - ⚡ **異步處理**: 高效能的異步爬蟲架構
 - ⏰ **定時執行**: 支援每天台灣時區下午3點自動執行
 - 🛡️ **防爬機制**: 隨機UA、指數退避、Selenium後備、代理支援
-- 🌐 **完整前端網頁**: Next.js前端，支援作者搜尋和文章分析結果展示，**已部署上線**
+- 🌐 **前端展示**: Next.js前端，支援作者搜尋和文章分析結果展示
 - 🔄 **自動同步**: 本地修改自動同步到VPS部署
 - 🐳 **VPS部署**: 支援Docker容器化部署
 
 ## 系統架構
 
 ```
-本地開發 → GitHub → VPS自動同步 → Docker部署 → 線上網頁
+本地開發 → GitHub → VPS自動同步 → Docker部署
     ↓
-PTT爬蟲 → 內容過濾 → 批量分析 → PostgreSQL → HTTP MCP Server → Next.js前端 → 用戶瀏覽
+PTT爬蟲 → 內容過濾 → 批量分析 → PostgreSQL → HTTP MCP Server → Next.js前端
     ↓
-Ollama LLM / 規則式分析 → 股票推薦 → 原因分析 → 資料庫儲存 → 即時展示
+Ollama LLM / 規則式分析 → 股票推薦 → 原因分析 → 資料庫儲存
 ```
 
 ## 快速開始
@@ -74,13 +72,8 @@ python main.py --mode mcp
 python main.py --mode both
 ```
 
-### 5. 前端使用
+### 5. 前端啟動
 
-**線上使用**：
-- 直接訪問 [http://www.chaser.cloud](http://www.chaser.cloud)
-- 輸入PTT作者名稱即可查看分析結果
-
-**本地開發**：
 ```bash
 # 進入前端目錄
 cd frontend
@@ -134,13 +127,10 @@ HTTP MCP Server提供以下API端點：
 
 ### 前端使用
 
-**線上網頁功能**：
-1. 訪問 [http://www.chaser.cloud](http://www.chaser.cloud)
-2. 在搜尋框輸入PTT作者名稱
-3. 查看該作者的文章列表
-4. 直接查看每篇文章的股票推薦和分析原因
-5. 高推文數文章會顯示紅色"爆"字
-6. 所有分析結果都是預先處理，載入速度快
+1. 在搜尋框輸入PTT作者名稱
+2. 查看該作者的文章列表
+3. 直接查看每篇文章的股票推薦和分析原因
+4. 高推文數文章會顯示紅色"爆"字
 
 ### 資料庫查詢
 
@@ -202,6 +192,8 @@ chaser/
 ├── quick_sync.sh              # 快速同步腳本
 ├── vps_sync.sh                # VPS同步腳本
 ├── setup_vps_auto_sync.sh     # VPS自動同步設定
+├── SYNC_GUIDE.md              # 同步使用指南
+├── QUICKSTART.md              # 快速開始指南
 ├── requirements.txt           # 依賴清單
 ├── docker-compose.yml         # Docker Compose配置
 ├── Dockerfile                 # Docker配置
@@ -270,15 +262,14 @@ MIT License
 ## 更新日誌
 
 ### v2.0.0
-- ✅ **新增Next.js前端展示介面** - 完整網頁已上線
-- ✅ **整合Ollama本地LLM分析** - 支援本地LLM分析
-- ✅ **實現批量文章預分析流程** - 提升載入速度
-- ✅ **新增HTTP MCP Server替代stdio版本** - 更穩定的API服務
-- ✅ **優化文章內容過濾（排除回文）** - 提高分析準確性
-- ✅ **調整定時執行時間為下午3點** - 符合台灣時區
-- ✅ **新增分析結果資料庫儲存** - 預先處理提升效能
-- ✅ **清理專案結構，移除不必要檔案** - 簡化維護
-- ✅ **VPS部署和域名配置** - 線上服務 [www.chaser.cloud](http://www.chaser.cloud)
+- 新增Next.js前端展示介面
+- 整合Ollama本地LLM分析
+- 實現批量文章預分析流程
+- 新增HTTP MCP Server替代stdio版本
+- 優化文章內容過濾（排除回文）
+- 調整定時執行時間為下午3點
+- 新增分析結果資料庫儲存
+- 清理專案結構，移除不必要檔案
 
 ### v1.2.0
 - 新增自動同步部署功能
