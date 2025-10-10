@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     # MCP Server
     mcp_server_host: str = "localhost"
     mcp_server_port: int = 8000
+    mcp_server_url: str = "http://localhost:8000"
+    
+    # Scheduler
+    scheduled_time: str = "15:00"
+    timezone: str = "Asia/Taipei"
+    
+    # User Agent
+    random_user_agent: bool = True
     
     # Logging
     log_level: str = "INFO"
