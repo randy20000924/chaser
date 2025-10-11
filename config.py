@@ -4,8 +4,6 @@ from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import List
 import os
-
-
 class Settings(BaseSettings):
     """Application settings."""
     
@@ -38,22 +36,9 @@ class Settings(BaseSettings):
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
     ]
     
-    # LLM / Ollama
-    enable_ollama: bool = False
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:0.5b"
-    
     # MCP Server
     mcp_server_host: str = "localhost"
     mcp_server_port: int = 8000
-    mcp_server_url: str = "http://localhost:8000"
-    
-    # Scheduler
-    scheduled_time: str = "15:00"
-    timezone: str = "Asia/Taipei"
-    
-    # User Agent
-    random_user_agent: bool = True
     
     # Logging
     log_level: str = "INFO"
@@ -62,6 +47,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # 忽略額外的環境變量
 
     @field_validator("target_authors", mode="before")
     @classmethod
@@ -70,7 +56,5 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [author.strip() for author in value.split(",") if author.strip()]
         return value
-
-
 # Global settings instance
 settings = Settings()

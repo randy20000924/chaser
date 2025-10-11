@@ -11,9 +11,10 @@ import pytz
 
 from config import settings
 from database import db_manager
-from data_processor import CrawlOrchestrator
-
-
+from ptt_crawler import PTTCrawler
+from http_mcp_server import app as mcp_app
+from crawl_orchestrator import CrawlOrchestrator
+import uvicorn
 class PTTStockCrawlerApp:
     """PTT股票爬蟲主應用程式."""
     
@@ -111,10 +112,10 @@ class PTTStockCrawlerApp:
     async def start_mcp_server(self):
         """啟動MCP Server."""
         logger.info("Starting MCP server...")
-        logger.info("MCP server is now handled by http_mcp_server.py separately")
-        # MCP服務器由 http_mcp_server.py 獨立運行
-        while self.running:
-            await asyncio.sleep(1)
+        try:
+            uvicorn.run(mcp_app, host="0.0.0.0", port=8000)
+        except Exception as e:
+            logger.error(f"MCP server error: {e}")
     
     async def run(self, mode: str = "crawler"):
         """執行應用程式."""
@@ -183,8 +184,6 @@ class PTTStockCrawlerApp:
         # 處理未分類文章
         process_result = await self.orchestrator.process_unprocessed_articles()
         logger.info(f"Processing completed: {process_result}")
-
-
 def setup_logging():
     """設定日誌系統."""
     # 移除預設的日誌處理器
@@ -206,8 +205,6 @@ def setup_logging():
         retention="30 days",
         compression="zip"
     )
-
-
 async def main():
     """主函數."""
     parser = argparse.ArgumentParser(description="PTT Stock Crawler")
@@ -238,7 +235,5 @@ async def main():
         await app.run_once()
     else:
         await app.run(args.mode)
-
-
 if __name__ == "__main__":
     asyncio.run(main())

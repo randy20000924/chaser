@@ -7,8 +7,6 @@ from datetime import datetime
 import uuid
 
 Base = declarative_base()
-
-
 class PTTArticle(Base):
     """PTT文章資料模型."""
     
@@ -38,13 +36,20 @@ class PTTArticle(Base):
     tags = Column(JSON)  # 標籤列表
     sentiment = Column(String(20))  # 情感分析結果
     
+    # LLM 分析結果
+    analysis_result = Column(JSON)  # 完整的 LLM 分析結果
+    analysis_time = Column(DateTime)  # 分析時間
+    recommended_stocks = Column(JSON)  # 推薦的股票代碼
+    analysis_reason = Column(Text)  # 分析原因
+    llm_sentiment = Column(String(20))  # LLM 情感分析
+    llm_sectors = Column(JSON)  # LLM 產業分析
+    llm_strategy = Column(String(50))  # LLM 策略分析
+    llm_risk_level = Column(String(20))  # LLM 風險等級
+    
     # 處理狀態
     is_processed = Column(Boolean, default=False)
+    is_analyzed = Column(Boolean, default=False)  # 是否已進行 LLM 分析
     is_relevant = Column(Boolean, default=True)
-    
-    # 分析結果
-    analysis_result = Column(Text)  # JSON格式的分析結果
-    analysis_time = Column(DateTime)  # 分析時間
     
     # 建立索引
     __table_args__ = (
@@ -56,8 +61,6 @@ class PTTArticle(Base):
     
     def __repr__(self):
         return f"<PTTArticle(id={self.article_id}, author={self.author}, title={self.title[:50]}...)>"
-
-
 class CrawlLog(Base):
     """爬蟲執行日誌."""
     
@@ -74,8 +77,6 @@ class CrawlLog(Base):
     
     def __repr__(self):
         return f"<CrawlLog(time={self.crawl_time}, found={self.articles_found}, saved={self.articles_saved})>"
-
-
 class AuthorProfile(Base):
     """作者檔案."""
     

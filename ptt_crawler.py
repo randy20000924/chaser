@@ -5,18 +5,16 @@ import aiohttp
 import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
-from urllib.parse import urljoin, urlparse, parse_qs
+from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from loguru import logger
 import random
-import time
+from random import choice
 
 from config import settings
-from random import choice
-from models import PTTArticle, AuthorProfile
+from models import PTTArticle
 from database import db_manager
-
-
+from article_analyzer import ArticleAnalyzer
 class PTTCrawler:
     """PTT爬蟲類別."""
     
@@ -29,6 +27,7 @@ class PTTCrawler:
         self.session = None
         self.cookies = {"over18": "1"}
         self.proxy = settings.http_proxy_url
+        self.analyzer = ArticleAnalyzer()  # 添加分析器
         
     async def __aenter__(self):
         """異步上下文管理器進入."""
@@ -126,105 +125,7 @@ class PTTCrawler:
                 except Exception:
                     pass
 
-    async def _fallback_with_selenium(self, url: str) -> Optional[str]:
-        """當被擋時以 Selenium 取得頁面並同步 cookies 回 session."""
-        if not settings.enable_selenium:
-            return None
-        try:
-            from selenium import webdriver
-            from selenium.webdriver.chrome.options import Options
-            options = Options()
-            options.add_argument(f"--user-agent={self.user_agent}")
-            options.add_argument("--headless=new")
-            options.add_argument("--disable-gpu")
-            if self.proxy:
-                options.add_argument(f"--proxy-server={self.proxy}")
-            driver = webdriver.Chrome(options=options)
-            driver.get(f"{self.base_url}/ask/over18?from=/bbs/{self.stock_board}/index.html")
-            try:
-                # 同意 18+
-                from selenium.webdriver.common.by import By
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.btn-big'))).click()
-            except Exception:
-                pass
-            driver.get(url)
-            html = driver.page_source
-            # 回灌 cookies
-            for c in driver.get_cookies():
-                self.cookies[c.get('name')] = c.get('value')
-            driver.quit()
-            return html
-        except Exception as e:
-            logger.error(f"Selenium fallback failed: {e}")
-            return None
     
-    def _parse_article_list(self, html: str) -> List[Dict]:
-        """解析文章列表頁面."""
-        soup = BeautifulSoup(html, 'html.parser')
-        articles = []
-        
-        # 尋找文章列表
-        for row in soup.find_all('div', class_='r-ent'):
-            try:
-                # 取得文章標題和連結
-                title_cell = row.find('div', class_='title')
-                if not title_cell:
-                    continue
-                
-                title_link = title_cell.find('a')
-                if not title_link:
-                    continue
-                
-                title = title_link.text.strip()
-                article_url = title_link.get('href')
-                
-                # 跳過已刪除的文章
-                if title.startswith('(本文已被刪除)') or title.startswith('(本文已被'):
-                    continue
-                
-                # 取得作者 - 修正：作者在 meta 裡面
-                meta_cell = row.find('div', class_='meta')
-                author = ''
-                if meta_cell:
-                    author_cell = meta_cell.find('div', class_='author')
-                    author = author_cell.text.strip() if author_cell else ''
-                
-                # 取得推文數
-                push_cell = row.find('div', class_='nrec')
-                push_count = 0
-                if push_cell and push_cell.text.strip():
-                    push_text = push_cell.text.strip()
-                    if push_text.isdigit():
-                        push_count = int(push_text)
-                    elif push_text == '爆':
-                        push_count = 100
-                
-                # 取得日期
-                date_cell = row.find('div', class_='date')
-                date_str = date_cell.text.strip() if date_cell else ''
-                
-                logger.info(f"Found article: {title[:50]}... by {author}")
-                
-                # 記錄所有作者（不再只處理目標作者）
-                # if author not in self.target_authors:
-                #     continue
-                
-                articles.append({
-                    'title': title,
-                    'author': author,
-                    'url': urljoin(self.base_url, article_url),
-                    'push_count': push_count,
-                    'date_str': date_str
-                })
-                
-            except Exception as e:
-                logger.error(f"Error parsing article row: {e}")
-                continue
-        
-        logger.info(f"Parsed {len(articles)} articles for target authors")
-        return articles
     
     def _parse_author_search_results(self, html: str, target_author: str) -> List[Dict]:
         """解析作者搜尋結果頁面."""
@@ -301,7 +202,7 @@ class PTTCrawler:
         return articles
     
     async def _get_article_content(self, article_url: str) -> Optional[Dict]:
-        """取得文章詳細內容."""
+        """取得文章詳細內容並進行 LLM 分析."""
         html = await self._get_page(article_url)
         if not html:
             return None
@@ -335,12 +236,44 @@ class PTTCrawler:
             # 提取股票代碼
             stock_symbols = self._extract_stock_symbols(content)
             
-            return {
-                'article_id': article_id,
-                'content': content,
-                'publish_time': publish_time,
-                'stock_symbols': stock_symbols
-            }
+            # 進行 LLM 分析
+            logger.info(f"Starting LLM analysis for article: {article_id}")
+            try:
+                # 創建臨時的 PTTArticle 對象進行分析
+                temp_article = PTTArticle(
+                    article_id=article_id,
+                    title="",  # 標題會在後續處理中設置
+                    author="",  # 作者會在後續處理中設置
+                    board=self.stock_board,
+                    url=article_url,
+                    content=content,
+                    publish_time=publish_time,
+                    stock_symbols=stock_symbols
+                )
+                
+                # 進行 LLM 分析
+                analysis_result = self.analyzer._analyze_content(temp_article)
+                
+                logger.info(f"LLM analysis completed for article: {article_id}")
+                
+                return {
+                    'article_id': article_id,
+                    'content': content,
+                    'publish_time': publish_time,
+                    'stock_symbols': stock_symbols,
+                    'analysis_result': analysis_result  # 添加分析結果
+                }
+                
+            except Exception as e:
+                logger.error(f"LLM analysis failed for article {article_id}: {e}")
+                # 即使分析失敗，也返回基本內容
+                return {
+                    'article_id': article_id,
+                    'content': content,
+                    'publish_time': publish_time,
+                    'stock_symbols': stock_symbols,
+                    'analysis_result': None
+                }
             
         except Exception as e:
             logger.error(f"Error parsing article content from {article_url}: {e}")
@@ -441,71 +374,6 @@ class PTTCrawler:
         logger.info(f"Found {len(articles)} articles for author {author}")
         return articles
 
-    async def crawl_board_articles(self, max_articles: int = 50, since_days: int = 7) -> List[Dict]:
-        """直接爬取股票版文章列表，過濾出目標作者的文章，僅限最近 since_days 天."""
-        logger.info(f"Starting to crawl {self.stock_board} board articles for authors: {self.target_authors}")
-        
-        # 先訪問看板首頁並通過 18+ 驗證
-        await self._setup_board_access()
-        
-        articles = []
-        page = 0
-        cutoff_time = datetime.now() - timedelta(days=since_days)
-        reached_old_articles = False
-        
-        while len(articles) < max_articles:
-            # 構建看板文章列表URL
-            list_url = f"{self.base_url}/bbs/{self.stock_board}/index{page}.html" if page > 0 else f"{self.base_url}/bbs/{self.stock_board}/index.html"
-            
-            logger.info(f"Fetching page {page} for {self.stock_board} board")
-            html = await self._get_page(list_url)
-            
-            if not html:
-                logger.warning(f"Failed to fetch page {page} for {self.stock_board} board")
-                break
-            
-            page_articles = self._parse_article_list(html)
-            
-            if not page_articles:
-                logger.info(f"No more articles found for {self.stock_board} board on page {page}")
-                break
-            
-            # 處理每篇文章
-            for article_info in page_articles:
-                if len(articles) >= max_articles:
-                    break
-                
-                # 只處理目標作者的文章
-                if article_info['author'] not in self.target_authors:
-                    continue
-                
-                logger.info(f"Processing article: {article_info['title'][:50]}...")
-                
-                # 取得文章詳細內容
-                content_info = await self._get_article_content(article_info['url'])
-                if content_info:
-                    # 僅保留最近一週
-                    if content_info.get('publish_time') and content_info['publish_time'] < cutoff_time:
-                        reached_old_articles = True
-                        continue
-                    article_info.update(content_info)
-                    articles.append(article_info)
-                
-                # 避免請求過於頻繁
-                await asyncio.sleep(random.uniform(2, 4))
-            
-            # 若本頁已有舊文章，後續頁面更舊，直接停止
-            if reached_old_articles:
-                logger.info(f"Reached articles older than {since_days} days, stopping pagination")
-                break
-
-            page += 1
-            
-            # 避免請求過於頻繁
-            await asyncio.sleep(random.uniform(3, 6))
-        
-        logger.info(f"Found {len(articles)} articles for target authors")
-        return articles
     
     async def crawl_all_authors(self) -> List[Dict]:
         """爬取所有目標作者的文章（使用作者搜尋功能）."""
@@ -519,19 +387,3 @@ class PTTCrawler:
         
         logger.info(f"Total articles found: {len(all_articles)}")
         return all_articles
-
-
-async def main():
-    """測試爬蟲功能."""
-    async with PTTCrawler() as crawler:
-        articles = await crawler.crawl_all_authors()
-        print(f"Total articles found: {len(articles)}")
-        for article in articles[:3]:  # 顯示前3篇
-            print(f"Title: {article['title']}")
-            print(f"Author: {article['author']}")
-            print(f"Stock symbols: {article.get('stock_symbols', [])}")
-            print("---")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

@@ -9,8 +9,6 @@ from functools import wraps
 
 from config import settings
 from models import Base
-
-
 # 建立資料庫引擎
 engine = create_engine(
     settings.database_url,
@@ -20,13 +18,9 @@ engine = create_engine(
 
 # 建立Session工廠
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
 def create_tables():
     """建立所有資料表."""
     Base.metadata.create_all(bind=engine)
-
-
 def get_db() -> Session:
     """取得資料庫session."""
     db = SessionLocal()
@@ -34,8 +28,6 @@ def get_db() -> Session:
         yield db
     finally:
         db.close()
-
-
 @asynccontextmanager
 async def get_async_db() -> AsyncGenerator[Session, None]:
     """異步取得資料庫session."""
@@ -44,8 +36,6 @@ async def get_async_db() -> AsyncGenerator[Session, None]:
         yield db
     finally:
         db.close()
-
-
 def run_async(func):
     """將同步函數包裝為異步執行."""
     @wraps(func)
@@ -53,8 +43,6 @@ def run_async(func):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, func, *args, **kwargs)
     return wrapper
-
-
 class DatabaseManager:
     """資料庫管理類別."""
     
@@ -79,7 +67,5 @@ class DatabaseManager:
         except Exception as e:
             print(f"Database health check failed: {e}")
             return False
-
-
 # 全域資料庫管理實例
 db_manager = DatabaseManager()

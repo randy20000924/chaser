@@ -186,10 +186,29 @@ A:
 - 確認MCP依賴已正確安裝
 - 查看日誌檔案中的錯誤訊息
 
+## 10. 自動同步部署
+
+### 本地開發
+```bash
+# 修改程式碼後同步到VPS
+./sync.sh
+
+# 快速同步（緊急更新）
+./quick_sync.sh
+```
+
+### VPS設定
+```bash
+# 在VPS上設定自動同步
+cd /var/www/chaser
+chmod +x vps_sync.sh
+(crontab -l 2>/dev/null; echo "*/2 * * * * /var/www/chaser/vps_sync.sh >> /var/log/chaser_sync.log 2>&1") | crontab -
+```
 
 ## 11. 下一步
 
 - 閱讀完整的 [README.md](README.md) 了解詳細功能
+- 閱讀 [SYNC_GUIDE.md](SYNC_GUIDE.md) 了解同步部署
 - 修改 `config.py` 自定義設定
 - 在 `article_analyzer.py` 中整合實際的LLM API
 - 添加更多作者到追蹤列表
@@ -199,4 +218,5 @@ A:
 如有問題，請查看：
 1. 日誌檔案：`logs/crawler.log`
 2. 完整文檔：`README.md`
-3. 資料庫查詢：直接使用SQL或Python腳本
+3. 同步指南：`SYNC_GUIDE.md`
+4. 快速查詢：`python quick_query.py`

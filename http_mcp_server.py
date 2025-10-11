@@ -113,63 +113,19 @@ async def search_articles(request: Dict[str, Any]):
 
 @app.post("/tools/analyze_article")
 async def analyze_article(request: Dict[str, Any]):
-    """分析文章 - 從資料庫獲取已分析結果或進行即時分析."""
+    """分析文章."""
     try:
         article_id = request.get("article_id")
         if not article_id:
             raise HTTPException(status_code=400, detail="article_id is required")
         
-        analyzer = ArticleAnalyzer()
-        result = analyzer.get_article_analysis(article_id)
+        analyzer = ArticleAnalyzer()  # 每次創建新實例
+        result = analyzer.analyze_article(article_id)
         logger.info(f"Analysis result for {article_id}: {result}")
         return result
         
     except Exception as e:
         logger.error(f"Error analyzing article: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/tools/get_author_articles")
-async def get_author_articles(request: Dict[str, Any]):
-    """獲取作者的文章及其分析結果."""
-    try:
-        author = request.get("author")
-        limit = request.get("limit", 20)
-        
-        if not author:
-            raise HTTPException(status_code=400, detail="author is required")
-        
-        analyzer = ArticleAnalyzer()
-        result = analyzer.get_author_articles_with_analysis(author, limit)
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error getting author articles: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/tools/process_articles")
-async def process_articles(request: Dict[str, Any]):
-    """處理已爬取但未分析的文章."""
-    try:
-        limit = request.get("limit", None)
-        
-        analyzer = ArticleAnalyzer()
-        result = analyzer.process_crawled_articles(limit)
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error processing articles: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/tools/analysis_stats")
-async def get_analysis_stats():
-    """獲取分析統計信息."""
-    try:
-        analyzer = ArticleAnalyzer()
-        stats = analyzer.get_analysis_statistics()
-        return stats
-        
-    except Exception as e:
-        logger.error(f"Error getting analysis stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/tools/get_all_authors")
@@ -201,6 +157,38 @@ async def get_all_authors():
             
     except Exception as e:
         logger.error(f"Error getting all authors: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/articles/{article_id}/analysis")
+async def get_article_analysis(article_id: str):
+    """直接從資料庫讀取文章分析結果."""
+    try:
+        with db_manager.get_session() as session:
+            article = session.query(PTTArticle).filter(
+                PTTArticle.article_id == article_id
+            ).first()
+            
+            if not article:
+                raise HTTPException(status_code=404, detail="Article not found")
+            
+            # 如果文章沒有分析結果，返回錯誤
+            if not article.is_analyzed or not article.analysis_result:
+                raise HTTPException(status_code=404, detail="Article analysis not available")
+            
+            # 返回分析結果
+            return {
+                "author": article.author,
+                "date": article.publish_time.strftime('%Y-%m-%d') if article.publish_time else 'N/A',
+                "url": article.url,
+                "recommended_stocks": article.recommended_stocks or [],
+                "reason": article.analysis_reason or "技術分析",
+                "llm_analysis": article.analysis_result
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting article analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

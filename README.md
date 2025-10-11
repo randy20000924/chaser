@@ -1,25 +1,26 @@
-# Chaser: PTT股票版作者爬蟲分析
+# PTT股票版爬蟲系統
 
-一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析、前端展示。
+一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析和自動同步部署。
 
 ## 功能特色
 
-- 🕷️ **智能爬蟲**: 處理PTT防爬機制和年齡限制，支援內容過濾
+- 🕷️ **智能爬蟲**: 處理PTT防爬機制和年齡限制
 - 👥 **多作者追蹤**: 支援追蹤多個指定作者的文章
-- 🗄️ **資料庫儲存**: 使用PostgreSQL儲存結構化資料和分析結果
-- 🔍 **MCP整合**: 提供HTTP MCP Server供LLM查詢和分析
-- 🤖 **LLM分析**: 支援Ollama本地LLM和規則式分析，股票推薦和原因分析
+- 🗄️ **資料庫儲存**: 使用PostgreSQL儲存結構化資料
+- 🔍 **MCP整合**: 提供MCP Server供LLM查詢和分析
+- 🤖 **LLM分析**: 支援文章分類、情感分析、股票推薦等AI功能
 - ⚡ **異步處理**: 高效能的異步爬蟲架構
-- ⏰ **定時執行**: 支援每天台灣時區下午3點自動執行
+- ⏰ **定時執行**: 支援每天台灣時區早上8點自動執行
 - 🛡️ **防爬機制**: 隨機UA、指數退避、Selenium後備、代理支援
-- 🌐 **前端展示**: Next.js前端，支援作者搜尋和文章分析結果展示
+- 🔄 **自動同步**: 本地修改自動同步到VPS部署
+- 🌐 **VPS部署**: 支援Docker容器化部署
 
 ## 系統架構
 
 ```
-PTT爬蟲 → 內容過濾 → 批量分析 → PostgreSQL → HTTP MCP Server → Next.js前端
+本地開發 → GitHub → VPS自動同步 → Docker部署
     ↓
-Ollama LLM / 規則式分析 → 股票推薦 → 原因分析 → 資料庫儲存
+PTT爬蟲 → 資料處理 → PostgreSQL → MCP Server → LLM Agent
 ```
 
 ## 快速開始
@@ -52,7 +53,7 @@ python -c "from database import db_manager; db_manager.create_tables()"
 ### 4. 執行模式
 
 ```bash
-# 定時執行（每天台灣時區下午3點）
+# 定時執行（每天台灣時區早上8點）
 python main.py --mode scheduled
 
 # 執行一次爬蟲（測試用）
@@ -61,31 +62,16 @@ python main.py --mode once
 # 常駐爬蟲（每5分鐘檢查）
 python main.py --mode crawler
 
-# 執行HTTP MCP服務器
+# 執行MCP服務器
 python main.py --mode mcp
 
 # 同時執行爬蟲和MCP
 python main.py --mode both
 ```
 
-### 5. 前端啟動
+### 5. 定時執行設定
 
-```bash
-# 進入前端目錄
-cd frontend
-
-# 安裝依賴
-npm install
-
-# 啟動開發服務器
-npm run dev
-
-# 訪問 http://localhost:3000
-```
-
-### 6. 定時執行設定
-
-系統支援每天台灣時區下午3點自動執行爬蟲：
+系統支援每天台灣時區早上8點自動執行爬蟲：
 
 ```bash
 # 啟動定時執行
@@ -111,22 +97,15 @@ async def crawl_articles():
         print(f"找到 {len(articles)} 篇文章")
 ```
 
-### HTTP MCP查詢
+### MCP查詢
 
-HTTP MCP Server提供以下API端點：
+MCP Server提供以下工具：
 
-- `POST /tools/analyze_article`: 分析單篇文章
-- `POST /tools/get_author_articles`: 取得作者文章列表（含分析結果）
-- `POST /tools/process_articles`: 批量處理未分析的文章
-- `GET /tools/analysis_stats`: 取得分析統計資料
-- `GET /health`: 健康檢查
-
-### 前端使用
-
-1. 在搜尋框輸入PTT作者名稱
-2. 查看該作者的文章列表
-3. 直接查看每篇文章的股票推薦和分析原因
-4. 高推文數文章會顯示紅色"爆"字
+- `search_articles`: 搜尋文章（按作者、股票代碼、時間）
+- `get_article_content`: 取得文章完整內容
+- `analyze_author_activity`: 分析作者活動模式
+- `get_stock_mentions`: 取得股票提及統計
+- `classify_article`: 分類文章內容
 
 ### 資料庫查詢
 
@@ -155,14 +134,10 @@ with db_manager.get_session() as session:
 | `HTTP_PROXY_URL` | HTTP代理URL | 無 |
 | `RANDOM_USER_AGENT` | 隨機User-Agent | `true` |
 | `LOG_LEVEL` | 日誌級別 | `INFO` |
-| `ENABLE_OLLAMA` | 啟用Ollama LLM分析 | `false` |
-| `OLLAMA_BASE_URL` | Ollama服務地址 | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Ollama模型名稱 | `qwen2.5:0.5b` |
-| `MCP_SERVER_URL` | MCP服務器地址 | `http://localhost:8000` |
 
 ### 資料庫結構
 
-- `ptt_articles`: 文章資料表（含分析結果欄位）
+- `ptt_articles`: 文章資料表
 - `author_profiles`: 作者檔案表
 - `crawl_logs`: 爬蟲執行日誌表
 
@@ -177,13 +152,17 @@ chaser/
 ├── models.py                  # 資料庫模型
 ├── database.py                # 資料庫連線
 ├── ptt_crawler.py             # PTT爬蟲模組
-├── data_processor.py          # 資料處理器
-├── article_analyzer.py        # 文章分析模組（含Ollama整合）
-├── http_mcp_server.py         # HTTP MCP Server
-├── frontend/                  # Next.js前端應用
-│   ├── src/app/              # 前端頁面和API
-│   ├── package.json          # 前端依賴
-│   └── next.config.ts        # Next.js配置
+├── data_processor.py          # 資料處理和LLM整合
+├── simple_mcp_server.py       # MCP Server
+├── article_analyzer.py        # 文章分析模組
+├── article_selector.py        # 文章選擇器
+├── quick_query.py             # 快速查詢工具
+├── view_output.py             # 輸出查看工具
+├── sync.sh                    # 本地同步腳本
+├── quick_sync.sh              # 快速同步腳本
+├── vps_sync.sh                # VPS同步腳本
+├── setup_vps_auto_sync.sh     # VPS自動同步設定
+├── SYNC_GUIDE.md              # 同步使用指南
 ├── QUICKSTART.md              # 快速開始指南
 ├── requirements.txt           # 依賴清單
 ├── docker-compose.yml         # Docker Compose配置
@@ -194,11 +173,23 @@ chaser/
 ### 添加新功能
 
 1. **新增作者追蹤**: 修改 `config.py` 中的 `target_authors`
-2. **自定義分析**: 修改 `article_analyzer.py` 中的分析方法
-3. **新增API端點**: 修改 `http_mcp_server.py` 中的路由
-4. **前端功能**: 修改 `frontend/src/app/` 中的頁面和API
-5. **Ollama模型**: 修改 `config.py` 中的 `OLLAMA_MODEL` 設定
+2. **自定義分類**: 修改 `data_processor.py` 中的 `LLMClassifier`
+3. **新增查詢工具**: 修改 `simple_mcp_server.py` 中的工具列表
+4. **新增分析功能**: 修改 `article_analyzer.py` 中的分析方法
 
+### 自動同步部署
+
+系統支援本地開發自動同步到VPS：
+
+```bash
+# 本地修改後同步
+./sync.sh
+
+# 快速同步（緊急更新）
+./quick_sync.sh
+```
+
+VPS會每2分鐘自動檢查GitHub更新並同步。
 
 ## 故障排除
 
@@ -239,21 +230,13 @@ MIT License
 
 ## 更新日誌
 
-### v2.0.0
-- 新增Next.js前端展示介面
-- 整合Ollama本地LLM分析
-- 實現批量文章預分析流程
-- 新增HTTP MCP Server替代stdio版本
-- 優化文章內容過濾（排除回文）
-- 調整定時執行時間為下午3點
-- 新增分析結果資料庫儲存
-- 清理專案結構，移除不必要檔案
-
 ### v1.2.0
+- 新增自動同步部署功能
 - 新增文章分析模組（股票推薦、情感分析）
 - 新增互動式文章選擇器
 - 新增快速查詢工具
 - 優化專案結構，移除不必要檔案
+- 新增VPS部署支援
 
 ### v1.1.0
 - 新增定時執行功能（每天台灣時區早上8點）
