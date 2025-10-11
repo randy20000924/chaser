@@ -1,6 +1,6 @@
 # Chaser: PTT股票版作者爬蟲分析
 
-一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析、前端展示和自動同步部署。
+一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析、前端展示。
 
 ## 功能特色
 
@@ -13,14 +13,10 @@
 - ⏰ **定時執行**: 支援每天台灣時區下午3點自動執行
 - 🛡️ **防爬機制**: 隨機UA、指數退避、Selenium後備、代理支援
 - 🌐 **前端展示**: Next.js前端，支援作者搜尋和文章分析結果展示
-- 🔄 **自動同步**: 本地修改自動同步到VPS部署
-- 🐳 **VPS部署**: 支援Docker容器化部署
 
 ## 系統架構
 
 ```
-本地開發 → GitHub → VPS自動同步 → Docker部署
-    ↓
 PTT爬蟲 → 內容過濾 → 批量分析 → PostgreSQL → HTTP MCP Server → Next.js前端
     ↓
 Ollama LLM / 規則式分析 → 股票推薦 → 原因分析 → 資料庫儲存
@@ -161,7 +157,7 @@ with db_manager.get_session() as session:
 | `LOG_LEVEL` | 日誌級別 | `INFO` |
 | `ENABLE_OLLAMA` | 啟用Ollama LLM分析 | `false` |
 | `OLLAMA_BASE_URL` | Ollama服務地址 | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Ollama模型名稱 | `qwen2.5:3b` |
+| `OLLAMA_MODEL` | Ollama模型名稱 | `qwen2.5:0.5b` |
 | `MCP_SERVER_URL` | MCP服務器地址 | `http://localhost:8000` |
 
 ### 資料庫結構
@@ -188,11 +184,6 @@ chaser/
 │   ├── src/app/              # 前端頁面和API
 │   ├── package.json          # 前端依賴
 │   └── next.config.ts        # Next.js配置
-├── sync.sh                    # 本地同步腳本
-├── quick_sync.sh              # 快速同步腳本
-├── vps_sync.sh                # VPS同步腳本
-├── setup_vps_auto_sync.sh     # VPS自動同步設定
-├── SYNC_GUIDE.md              # 同步使用指南
 ├── QUICKSTART.md              # 快速開始指南
 ├── requirements.txt           # 依賴清單
 ├── docker-compose.yml         # Docker Compose配置
@@ -208,19 +199,6 @@ chaser/
 4. **前端功能**: 修改 `frontend/src/app/` 中的頁面和API
 5. **Ollama模型**: 修改 `config.py` 中的 `OLLAMA_MODEL` 設定
 
-### 自動同步部署
-
-系統支援本地開發自動同步到VPS：
-
-```bash
-# 本地修改後同步
-./sync.sh
-
-# 快速同步（緊急更新）
-./quick_sync.sh
-```
-
-VPS會每2分鐘自動檢查GitHub更新並同步。
 
 ## 故障排除
 
@@ -272,12 +250,10 @@ MIT License
 - 清理專案結構，移除不必要檔案
 
 ### v1.2.0
-- 新增自動同步部署功能
 - 新增文章分析模組（股票推薦、情感分析）
 - 新增互動式文章選擇器
 - 新增快速查詢工具
 - 優化專案結構，移除不必要檔案
-- 新增VPS部署支援
 
 ### v1.1.0
 - 新增定時執行功能（每天台灣時區早上8點）

@@ -112,6 +112,9 @@ class PTTStockCrawlerApp:
         """啟動MCP Server."""
         logger.info("Starting MCP server...")
         logger.info("MCP server is now handled by http_mcp_server.py separately")
+        # MCP服務器由 http_mcp_server.py 獨立運行
+        while self.running:
+            await asyncio.sleep(1)
     
     async def run(self, mode: str = "crawler"):
         """執行應用程式."""

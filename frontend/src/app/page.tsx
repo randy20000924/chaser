@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, TrendingUp, User, Calendar, ExternalLink } from 'lucide-react';
+import { Search, User, Calendar, ExternalLink } from 'lucide-react';
 
 interface Author {
   author: string;

@@ -107,135 +107,8 @@ class DataProcessor:
             session.add(log)
             session.commit()
     
-    async def process_articles_for_llm(self, article_ids: List[str]) -> List[Dict]:
-        """準備文章資料供LLM處理."""
-        with self.db.get_session() as session:
-            articles = session.query(PTTArticle).filter(
-                PTTArticle.article_id.in_(article_ids)
-            ).all()
-            
-            processed_articles = []
-            for article in articles:
-                processed_articles.append({
-                    "article_id": article.article_id,
-                    "title": article.title,
-                    "author": article.author,
-                    "content": article.content,
-                    "publish_time": article.publish_time.isoformat(),
-                    "stock_symbols": article.stock_symbols,
-                    "push_count": article.push_count,
-                    "url": article.url
-                })
-            
-            return processed_articles
 
 
-class LLMClassifier:
-    """LLM分類器（預留給未來整合）."""
-    
-    def __init__(self):
-        self.classification_prompts = {
-            "sentiment": """
-            請分析以下PTT股票版文章的投資情緒：
-            文章標題：{title}
-            文章內容：{content}
-            
-            請判斷文章的情緒傾向：
-            1. 看多 (bullish)
-            2. 看空 (bearish) 
-            3. 中性 (neutral)
-            4. 無法判斷 (unknown)
-            
-            請只回答選項編號。
-            """,
-            
-            "category": """
-            請將以下PTT股票版文章分類：
-            文章標題：{title}
-            文章內容：{content}
-            
-            請選擇最適合的分類：
-            1. 個股分析 (stock_analysis)
-            2. 市場評論 (market_commentary)
-            3. 技術分析 (technical_analysis)
-            4. 基本面分析 (fundamental_analysis)
-            5. 新聞分享 (news_share)
-            6. 討論交流 (discussion)
-            7. 其他 (other)
-            
-            請只回答選項編號。
-            """,
-            
-            "relevance": """
-            請判斷以下文章是否與股票投資相關：
-            文章標題：{title}
-            文章內容：{content}
-            
-            請回答：
-            1. 高度相關 (highly_relevant)
-            2. 相關 (relevant)
-            3. 低度相關 (lowly_relevant)
-            4. 不相關 (irrelevant)
-            
-            請只回答選項編號。
-            """
-        }
-    
-    async def classify_article(self, article: Dict) -> Dict:
-        """分類單篇文章."""
-        # 這裡預留給實際的LLM API調用
-        # 目前返回模擬結果
-        
-        logger.info(f"Classifying article: {article['title'][:50]}...")
-        
-        # 模擬分類結果
-        classification = {
-            "article_id": article["article_id"],
-            "sentiment": "neutral",  # 預設中性
-            "category": "discussion",  # 預設討論
-            "relevance": "relevant",  # 預設相關
-            "confidence": 0.5,  # 預設信心度
-            "tags": ["stock", "ptt"],  # 預設標籤
-            "processed_at": datetime.now().isoformat()
-        }
-        
-        return classification
-    
-    async def batch_classify(self, articles: List[Dict]) -> List[Dict]:
-        """批量分類文章."""
-        results = []
-        
-        for article in articles:
-            try:
-                classification = await self.classify_article(article)
-                results.append(classification)
-            except Exception as e:
-                logger.error(f"Error classifying article {article.get('article_id', 'unknown')}: {e}")
-                continue
-        
-        return results
-    
-    async def update_article_classification(self, classifications: List[Dict]) -> None:
-        """更新文章分類結果到資料庫."""
-        from database import db_manager
-        with db_manager.get_session() as session:
-            for classification in classifications:
-                try:
-                    article = session.query(PTTArticle).filter(
-                        PTTArticle.article_id == classification["article_id"]
-                    ).first()
-                    
-                    if article:
-                        article.sentiment = classification["sentiment"]
-                        article.category = classification["category"]
-                        article.tags = classification["tags"]
-                        article.is_processed = True
-                        
-                except Exception as e:
-                    logger.error(f"Error updating classification for {classification.get('article_id', 'unknown')}: {e}")
-                    continue
-            
-            session.commit()
 
 
 class CrawlOrchestrator:
@@ -244,7 +117,6 @@ class CrawlOrchestrator:
     def __init__(self):
         self.crawler = None
         self.processor = DataProcessor()
-        self.classifier = LLMClassifier()
     
     async def run_crawl_session(self) -> Dict:
         """執行完整的爬蟲會話."""
@@ -318,27 +190,15 @@ class CrawlOrchestrator:
             if not unprocessed_articles:
                 return {"status": "no_unprocessed_articles"}
             
-            # 準備文章資料
-            articles_data = []
+            # 標記為已處理（簡化版本）
             for article in unprocessed_articles:
-                articles_data.append({
-                    "article_id": article.article_id,
-                    "title": article.title,
-                    "content": article.content,
-                    "author": article.author,
-                    "publish_time": article.publish_time.isoformat(),
-                    "stock_symbols": article.stock_symbols
-                })
+                article.is_processed = True
             
-            # 執行分類
-            classifications = await self.classifier.batch_classify(articles_data)
-            
-            # 更新資料庫
-            await self.classifier.update_article_classification(classifications)
+            session.commit()
             
             return {
                 "status": "success",
-                "processed_count": len(classifications)
+                "processed_count": len(unprocessed_articles)
             }
 
 
