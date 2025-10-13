@@ -17,18 +17,18 @@ class ArticleAnalyzer:
     async def _analyze_with_llm(self, content: str) -> Dict[str, Any]:
         """使用 LLM 分析文章內容."""
         try:
-            # 簡化的提示詞，減少處理負擔
-            prompt = f"""請分析以下PTT股票版文章，提取關鍵信息：
+            # 進一步簡化提示詞，減少處理負擔
+            prompt = f"""分析PTT股票文章：
 
-文章內容：{content[:1000]}...
+{content[:500]}...
 
-請以JSON格式返回：
+返回JSON：
 {{
-    "recommended_stocks": ["股票代碼1", "股票代碼2"],
-    "reason": "簡短分析原因",
+    "recommended_stocks": ["代碼1", "代碼2"],
+    "reason": "簡短原因",
     "sentiment": "positive/negative/neutral",
-    "sectors": ["相關產業"],
-    "strategy": "投資策略類型",
+    "sectors": ["產業"],
+    "strategy": "策略",
     "risk_level": "low/medium/high"
 }}"""
 
@@ -40,11 +40,13 @@ class ArticleAnalyzer:
                         "prompt": prompt,
                         "stream": False,
                         "options": {
-                            "temperature": 0.7,
-                            "max_tokens": 500  # 限制輸出長度
+                            "temperature": 0.5,
+                            "max_tokens": 200,  # 進一步限制輸出長度
+                            "num_ctx": 1024,    # 限制上下文長度
+                            "num_predict": 200  # 限制預測長度
                         }
                     },
-                    timeout=aiohttp.ClientTimeout(total=30)  # 30秒超時
+                    timeout=aiohttp.ClientTimeout(total=15)  # 減少超時時間
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
