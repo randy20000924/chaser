@@ -19,15 +19,6 @@ class StockValidator:
         self.taiwan_pattern = re.compile(r'\b(\d{4})\b')
         # 美股代碼模式 (1-5位字母)
         self.us_pattern = re.compile(r'\b([A-Z]{1,5})\b')
-        
-        # API 呼叫控制
-        self.max_taiwan_validations_per_article = 3
-        self.max_us_validations_per_article = 3
-        self._aiohttp_timeout = aiohttp.ClientTimeout(total=5, connect=3, sock_read=5)
-        self._semaphore = asyncio.Semaphore(3)
-        
-        # 簡單快取避免重複查詢
-        self._cache: dict[str, Dict] = {}
     
     def extract_potential_codes(self, content: str) -> Tuple[List[str], List[str]]:
         """從內容中提取潛在的股票代碼."""
@@ -132,32 +123,27 @@ class StockValidator:
     
     async def validate_taiwan_stock(self, code: str) -> Optional[Dict]:
         """驗證台股代碼並獲取基本信息."""
-        cache_key = f"TW:{code}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
         try:
-            async with self._semaphore:
-                async with aiohttp.ClientSession(timeout=self._aiohttp_timeout) as session:
-                    # 使用 FinMind API 查詢台股基本信息
-                    url = f"{self.finmind_base_url}/taiwan_stock_info"
-                    params = {
-                        'token': self.finmind_api_key,
-                        'stock_id': code
-                    }
-                    async with session.get(url, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            if data.get('status') == 200 and data.get('data'):
-                                stock_info = data['data'][0]
-                                result = {
-                                    'code': code,
-                                    'name': stock_info.get('stock_name', ''),
-                                    'market': 'TW',
-                                    'type': 'taiwan_stock',
-                                    'valid': True
-                                }
-                                self._cache[cache_key] = result
-                                return result
+            async with aiohttp.ClientSession() as session:
+                # 使用 FinMind API 查詢台股基本信息
+                url = f"{self.finmind_base_url}/taiwan_stock_info"
+                params = {
+                    'token': self.finmind_api_key,
+                    'stock_id': code
+                }
+                
+                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data.get('status') == 200 and data.get('data'):
+                            stock_info = data['data'][0]
+                            return {
+                                'code': code,
+                                'name': stock_info.get('stock_name', ''),
+                                'market': 'TW',
+                                'type': 'taiwan_stock',
+                                'valid': True
+                            }
         except Exception as e:
             logger.warning(f"Error validating Taiwan stock {code}: {e}")
         
@@ -165,34 +151,29 @@ class StockValidator:
     
     async def validate_us_stock(self, code: str) -> Optional[Dict]:
         """驗證美股代碼並獲取基本信息."""
-        cache_key = f"US:{code}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
         try:
-            async with self._semaphore:
-                async with aiohttp.ClientSession(timeout=self._aiohttp_timeout) as session:
-                    # 使用 Alpha Vantage API 查詢美股基本信息
-                    url = self.alpha_vantage_base_url
-                    params = {
-                        'function': 'SYMBOL_SEARCH',
-                        'keywords': code,
-                        'apikey': self.alpha_vantage_api_key
-                    }
-                    async with session.get(url, params=params) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            if 'bestMatches' in data and data['bestMatches']:
-                                match = data['bestMatches'][0]
-                                if match.get('1. symbol', '').upper() == code.upper():
-                                    result = {
-                                        'code': code,
-                                        'name': match.get('2. name', ''),
-                                        'market': 'US',
-                                        'type': 'us_stock',
-                                        'valid': True
-                                    }
-                                    self._cache[cache_key] = result
-                                    return result
+            async with aiohttp.ClientSession() as session:
+                # 使用 Alpha Vantage API 查詢美股基本信息
+                url = self.alpha_vantage_base_url
+                params = {
+                    'function': 'SYMBOL_SEARCH',
+                    'keywords': code,
+                    'apikey': self.alpha_vantage_api_key
+                }
+                
+                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if 'bestMatches' in data and data['bestMatches']:
+                            match = data['bestMatches'][0]
+                            if match.get('1. symbol', '').upper() == code.upper():
+                                return {
+                                    'code': code,
+                                    'name': match.get('2. name', ''),
+                                    'market': 'US',
+                                    'type': 'us_stock',
+                                    'valid': True
+                                }
         except Exception as e:
             logger.warning(f"Error validating US stock {code}: {e}")
         
@@ -202,19 +183,19 @@ class StockValidator:
         """驗證內容中的所有股票代碼."""
         taiwan_codes, us_codes = self.extract_potential_codes(content)
         
-        # 限制每篇文章的驗證數量
-        taiwan_codes = taiwan_codes[: self.max_taiwan_validations_per_article]
-        us_codes = us_codes[: self.max_us_validations_per_article]
+        validated_stocks = []
         
-        validated_stocks: List[Dict] = []
+        # 驗證台股代碼
+        for code in taiwan_codes:
+            stock_info = await self.validate_taiwan_stock(code)
+            if stock_info:
+                validated_stocks.append(stock_info)
         
-        # 併發驗證並限制同時數量
-        tw_tasks = [self.validate_taiwan_stock(code) for code in taiwan_codes]
-        us_tasks = [self.validate_us_stock(code) for code in us_codes]
-        results = await asyncio.gather(*tw_tasks, *us_tasks, return_exceptions=True)
-        for r in results:
-            if isinstance(r, dict) and r.get('valid'):
-                validated_stocks.append(r)
+        # 驗證美股代碼
+        for code in us_codes:
+            stock_info = await self.validate_us_stock(code)
+            if stock_info:
+                validated_stocks.append(stock_info)
         
         # 去重
         seen_codes = set()
