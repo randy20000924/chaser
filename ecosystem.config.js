@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'chaser-backend',
-      script: 'python3',
+      script: '/var/www/chaser/venv/bin/python',
       args: 'main.py --mode mcp',
       cwd: '/var/www/chaser',
       user: 'www-data',
@@ -15,7 +15,8 @@ module.exports = {
       min_uptime: '10s',    // 最小運行時間
       kill_timeout: 5000,   // 強制關閉超時
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        PYTHONPATH: '/var/www/chaser'
       },
       error_file: '/var/log/chaser/backend-error.log',
       out_file: '/var/log/chaser/backend-out.log',
@@ -47,7 +48,7 @@ module.exports = {
     },
     {
       name: 'chaser-scheduler',
-      script: 'python3',
+      script: '/var/www/chaser/venv/bin/python',
       args: 'auto_crawler.py',
       cwd: '/var/www/chaser',
       user: 'www-data',
@@ -60,7 +61,8 @@ module.exports = {
       min_uptime: '30s',    // 排程器最小運行時間較長
       kill_timeout: 5000,   // 強制關閉超時
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        PYTHONPATH: '/var/www/chaser'
       },
       error_file: '/var/log/chaser/scheduler-error.log',
       out_file: '/var/log/chaser/scheduler-out.log',
