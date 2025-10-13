@@ -50,27 +50,76 @@ class StockValidator:
     
     def _is_valid_us_code(self, code: str) -> bool:
         """檢查是否為有效的美股代碼."""
-        # 排除單字母代碼（除了少數例外）
+    
+        # 排除單字母代碼
         if len(code) == 1:
             return False
         
-        # 排除常見的非股票代碼字母組合
+        # 排除常見的非股票代碼英文詞彙
         excluded = {
-            'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR',
-            'HAD', 'BUT', 'NOT', 'WHAT', 'ALL', 'WERE', 'WHEN', 'YOUR', 'SAID', 'EACH', 'WHICH',
-            'THEIR', 'TIME', 'WILL', 'ABOUT', 'IF', 'UP', 'OUT', 'MANY', 'THEN', 'THEM', 'THESE',
-            'SO', 'SOME', 'HER', 'WOULD', 'MAKE', 'LIKE', 'INTO', 'HIM', 'HAS', 'TWO', 'MORE',
-            'GO', 'NO', 'WAY', 'COULD', 'MY', 'THAN', 'FIRST', 'BEEN', 'CALL', 'WHO', 'ITS',
-            'NOW', 'FIND', 'LONG', 'DOWN', 'DAY', 'DID', 'GET', 'COME', 'MADE', 'MAY', 'PART',
-            # 添加更多常見的誤判詞彙
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+            # 冠詞、介係詞、連接詞
+            'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'WITH', 'FROM', 'INTO', 'OVER',
+            'ABOUT', 'AFTER', 'UNDER', 'UNTIL', 'UPON', 'THROUGH', 'BETWEEN', 'DURING',
+            'AT', 'BY', 'IN', 'ON', 'TO', 'OF', 'AS', 'OR', 'AN', 'IS', 'IT', 'BE', 'DO',
+            
+            # 代名詞
+            'YOU', 'HER', 'HIM', 'HIS', 'OUR', 'THEIR', 'THEM', 'THESE', 'THOSE', 'THIS',
+            'THAT', 'HE', 'SHE', 'WE', 'THEY', 'US', 'MY', 'YOUR', 'ITS', 'WHO', 'WHICH',
+            'WHAT', 'WHOSE', 'WHOM',
+            
+            # 常見動詞
+            'WAS', 'WERE', 'HAD', 'HAS', 'BEEN', 'BEING', 'HAVE', 'CAN', 'COULD', 'WILL',
+            'WOULD', 'SHALL', 'SHOULD', 'MAY', 'MIGHT', 'MUST', 'SAID', 'DID', 'MADE', 
+            'COME', 'CAME', 'MAKE', 'TAKE', 'GIVE', 'FIND', 'CALL', 'GET', 'GO', 'KNOW',
+            'SEE', 'SAY', 'USE', 'TELL', 'WORK', 'SHOW', 'LEAVE', 'FEEL', 'PUT', 'KEEP',
+            'LET', 'BEGIN', 'SEEM', 'HELP', 'TURN', 'START', 'WRITE', 'MOVE', 'TRY',
+            'LIVE', 'STAND', 'MEAN', 'LEAD', 'HEAR', 'MEET', 'RUN', 'LOOK', 'THINK',
+            'WANT', 'NEED', 'ASK', 'BECOME', 'BRING', 'FOLLOW', 'HOLD', 'LOSE', 'PAY',
+            
+            # 常見形容詞
+            'ONE', 'TWO', 'FIRST', 'LAST', 'LONG', 'GOOD', 'NEW', 'OLD', 'HIGH', 'GREAT',
+            'BIG', 'SMALL', 'LARGE', 'BEST', 'NEXT', 'EARLY', 'YOUNG', 'SAME', 'FEW',
+            'OWN', 'OTHER', 'RIGHT', 'SURE', 'REAL', 'TRUE', 'FULL', 'LESS', 'MOST',
+            'MUCH', 'MANY', 'MORE', 'SUCH', 'BOTH', 'EACH', 'EVERY', 'LITTLE', 'WHOLE',
+            
+            # 常見名詞
+            'TIME', 'YEAR', 'WAY', 'DAY', 'MAN', 'THING', 'WOMAN', 'LIFE', 'CHILD', 'WORLD',
+            'SCHOOL', 'STATE', 'FAMILY', 'STUDENT', 'GROUP', 'COUNTRY', 'PROBLEM', 'HAND',
+            'PART', 'PLACE', 'CASE', 'WEEK', 'COMPANY', 'SYSTEM', 'PROGRAM', 'QUESTION',
+            'WORK', 'GOVERNMENT', 'NUMBER', 'NIGHT', 'POINT', 'HOME', 'WATER', 'ROOM',
+            'MOTHER', 'AREA', 'MONEY', 'STORY', 'FACT', 'MONTH', 'BOOK', 'EYE', 'JOB',
+            'WORD', 'BUSINESS', 'ISSUE', 'SIDE', 'KIND', 'HEAD', 'HOUSE', 'SERVICE',
+            'FRIEND', 'FATHER', 'POWER', 'HOUR', 'GAME', 'LINE', 'END', 'MEMBER', 'LAW',
+            'DOOR', 'BACK', 'FACE', 'BODY', 'NAME', 'IDEA', 'LEVEL',
+            
+            # 副詞和其他高頻詞
+            'ALL', 'WHEN', 'THERE', 'IF', 'UP', 'OUT', 'THEN', 'SO', 'SOME', 'LIKE',
+            'NOW', 'DOWN', 'ONLY', 'ALSO', 'WELL', 'VERY', 'EVEN', 'BACK', 'JUST',
+            'WHERE', 'HOW', 'WHY', 'TOO', 'HERE', 'THAN', 'ONCE', 'AGAIN', 'NEVER',
+            'ALWAYS', 'OFTEN', 'SOMETIMES', 'AWAY', 'STILL', 'WHILE', 'SINCE', 'YET',
+            'EVER', 'ALREADY', 'QUITE', 'ALMOST', 'ENOUGH', 'RATHER', 'PERHAPS',
+            
+            # 數字相關
+            'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN',
+            'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY',
+            'HUNDRED', 'THOUSAND', 'MILLION', 'BILLION',
+            
+            # 其他常見詞
+            'YES', 'NO', 'MAYBE', 'SURE', 'OKAY', 'PLEASE', 'THANK', 'THANKS', 'SORRY',
+            'HELLO', 'GOODBYE', 'BEFORE', 'BECAUSE', 'THOUGH', 'ALTHOUGH', 'UNLESS',
+            'WHETHER', 'EITHER', 'NEITHER', 'BOTH', 'AMONG', 'AROUND', 'ACROSS', 'ALONG',
+            'BEHIND', 'BELOW', 'BESIDE', 'BEYOND', 'WITHIN', 'WITHOUT', 'AGAINST',
+            'TOWARD', 'TOWARDS',
         }
         
         if code in excluded:
             return False
         
         # 美股代碼通常是2-5位字母
-        return 2 <= len(code) <= 5 and code.isalpha()
+        if not (2 <= len(code) <= 5 and code.isalpha()):
+            return False
+        
+        return True
     
     async def validate_taiwan_stock(self, code: str) -> Optional[Dict]:
         """驗證台股代碼並獲取基本信息."""
