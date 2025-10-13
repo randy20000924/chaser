@@ -50,6 +50,10 @@ class StockValidator:
     
     def _is_valid_us_code(self, code: str) -> bool:
         """檢查是否為有效的美股代碼."""
+        # 排除單字母代碼（除了少數例外）
+        if len(code) == 1:
+            return False
+        
         # 排除常見的非股票代碼字母組合
         excluded = {
             'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR',
@@ -57,14 +61,17 @@ class StockValidator:
             'THEIR', 'TIME', 'WILL', 'ABOUT', 'IF', 'UP', 'OUT', 'MANY', 'THEN', 'THEM', 'THESE',
             'SO', 'SOME', 'HER', 'WOULD', 'MAKE', 'LIKE', 'INTO', 'HIM', 'HAS', 'TWO', 'MORE',
             'GO', 'NO', 'WAY', 'COULD', 'MY', 'THAN', 'FIRST', 'BEEN', 'CALL', 'WHO', 'ITS',
-            'NOW', 'FIND', 'LONG', 'DOWN', 'DAY', 'DID', 'GET', 'COME', 'MADE', 'MAY', 'PART'
+            'NOW', 'FIND', 'LONG', 'DOWN', 'DAY', 'DID', 'GET', 'COME', 'MADE', 'MAY', 'PART',
+            # 添加更多常見的誤判詞彙
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+            'SW', 'AUR', 'PL', 'LEU', 'RKLB', 'DKNG', 'KRMN'
         }
         
         if code in excluded:
             return False
         
-        # 美股代碼通常是1-5位字母
-        return 1 <= len(code) <= 5 and code.isalpha()
+        # 美股代碼通常是2-5位字母
+        return 2 <= len(code) <= 5 and code.isalpha()
     
     async def validate_taiwan_stock(self, code: str) -> Optional[Dict]:
         """驗證台股代碼並獲取基本信息."""
