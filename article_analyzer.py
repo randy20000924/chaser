@@ -12,7 +12,7 @@ class ArticleAnalyzer:
     
     def __init__(self):
         self.ollama_url = "http://localhost:11434"
-        self.model_name = "qwen2:0.5b"  # 使用較輕量的模型
+        self.model_name = "Qwen2.5:0.5b-instruct-q4_K_M"  # 使用量化版本
     
     async def _analyze_with_llm(self, content: str) -> Dict[str, Any]:
         """使用 LLM 分析文章內容."""
