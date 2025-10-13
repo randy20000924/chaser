@@ -41,7 +41,7 @@ export default function Home() {
 
   const fetchAuthors = async () => {
     try {
-      const response = await fetch('/api/authors/list');
+      const response = await fetch('/api/authors');
       const data = await response.json();
       setAuthors(data.authors || []);
     } catch (error) {

@@ -1,12 +1,13 @@
 """Database models for PTT Stock Crawler."""
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, JSON, Index
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.dialects.postgresql import UUID
-from datetime import datetime
 import uuid
+from datetime import datetime
+from sqlalchemy import Column, String, Text, DateTime, Integer, Boolean, JSON, Index
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
+
 class PTTArticle(Base):
     """PTT文章資料模型."""
     
@@ -55,44 +56,45 @@ class PTTArticle(Base):
     __table_args__ = (
         Index('idx_author_time', 'author', 'publish_time'),
         Index('idx_board_time', 'board', 'publish_time'),
-        Index('idx_stock_symbols', 'stock_symbols', postgresql_using='gin'),
         Index('idx_publish_time', 'publish_time'),
     )
     
     def __repr__(self):
         return f"<PTTArticle(id={self.article_id}, author={self.author}, title={self.title[:50]}...)>"
+
 class CrawlLog(Base):
-    """爬蟲執行日誌."""
+    """爬蟲執行日誌模型."""
     
     __tablename__ = "crawl_logs"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    crawl_time = Column(DateTime, default=datetime.utcnow, nullable=False)
-    target_authors = Column(JSON, nullable=False)
+    crawl_time = Column(DateTime, nullable=False, index=True)
+    target_authors = Column(JSON)  # 目標作者列表
     articles_found = Column(Integer, default=0)
     articles_saved = Column(Integer, default=0)
-    errors = Column(JSON)
+    articles_analyzed = Column(Integer, default=0)  # 新增：分析的文章數量
+    errors = Column(JSON)  # 錯誤列表
     duration_seconds = Column(Integer)
     status = Column(String(20), default="success")  # success, error, partial
     
     def __repr__(self):
-        return f"<CrawlLog(time={self.crawl_time}, found={self.articles_found}, saved={self.articles_saved})>"
+        return f"<CrawlLog(id={self.id}, time={self.crawl_time}, status={self.status})>"
+
 class AuthorProfile(Base):
-    """作者檔案."""
+    """作者檔案模型."""
     
     __tablename__ = "author_profiles"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    display_name = Column(String(100))
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_activity = Column(DateTime)
+    author = Column(String(50), unique=True, nullable=False, index=True)
     total_articles = Column(Integer, default=0)
-    
-    # 作者偏好設定
-    preferred_stocks = Column(JSON)  # 常關注的股票
-    writing_style = Column(JSON)  # 寫作風格分析
+    last_article_time = Column(DateTime)
+    avg_push_count = Column(Integer, default=0)
+    avg_boo_count = Column(Integer, default=0)
+    favorite_stocks = Column(JSON)  # 最常提及的股票
+    activity_pattern = Column(JSON)  # 活動模式分析
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
-        return f"<AuthorProfile(username={self.username}, active={self.is_active})>"
+        return f"<AuthorProfile(author={self.author}, articles={self.total_articles})>"

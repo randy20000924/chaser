@@ -1,13 +1,10 @@
 """PTT股票版爬蟲主應用程式."""
 
 import asyncio
-import signal
-import sys
-from datetime import datetime, time
+import argparse
+from datetime import datetime
 from typing import Optional
 from loguru import logger
-import argparse
-import pytz
 
 from config import settings
 from database import db_manager
@@ -15,6 +12,7 @@ from ptt_crawler import PTTCrawler
 from http_mcp_server import app as mcp_app
 from crawl_orchestrator import CrawlOrchestrator
 import uvicorn
+
 class PTTStockCrawlerApp:
     """PTT股票爬蟲主應用程式."""
     
@@ -40,107 +38,63 @@ class PTTStockCrawlerApp:
         logger.info("Application initialized successfully")
         return True
     
-    async def start_crawler(self):
-        """啟動爬蟲服務."""
-        logger.info("Starting crawler service...")
-        
-        while self.running:
-            try:
-                # 執行爬蟲會話
-                result = await self.orchestrator.run_crawl_session()
-                logger.info(f"Crawl session completed: {result}")
-                
-                # 處理未分類文章
-                process_result = await self.orchestrator.process_unprocessed_articles()
-                if process_result.get("processed_count", 0) > 0:
-                    logger.info(f"Processed {process_result['processed_count']} unclassified articles")
-                
-                # 等待下次執行
-                await asyncio.sleep(settings.crawl_interval)
-                
-            except Exception as e:
-                logger.error(f"Crawler error: {e}")
-                await asyncio.sleep(60)  # 錯誤後等待1分鐘再重試
-    
-    async def start_scheduled_crawler(self):
-        """啟動定時爬蟲服務（每天台灣時區下午3點執行）."""
-        logger.info("Starting scheduled crawler service (daily at 3:00 PM Taiwan time)...")
-        
-        # 設定台灣時區
-        taiwan_tz = pytz.timezone('Asia/Taipei')
-        
-        while self.running:
-            try:
-                # 取得台灣時間
-                now_taiwan = datetime.now(taiwan_tz)
-                current_time = now_taiwan.time()
-                target_time = time(15, 0)  # 下午3點
-                
-                # 計算距離下次執行的時間
-                if current_time < target_time:
-                    # 今天還沒到下午3點，等待到今天下午3點
-                    next_run = now_taiwan.replace(hour=15, minute=0, second=0, microsecond=0)
-                else:
-                    # 今天已經過了下午3點，等待到明天下午3點
-                    from datetime import timedelta
-                    next_run = now_taiwan.replace(hour=15, minute=0, second=0, microsecond=0) + timedelta(days=1)
-                
-                # 計算等待時間
-                wait_seconds = (next_run - now_taiwan).total_seconds()
-                logger.info(f"Next crawl scheduled at {next_run.strftime('%Y-%m-%d %H:%M:%S')} Taiwan time (in {wait_seconds/3600:.1f} hours)")
-                
-                # 等待到執行時間
-                await asyncio.sleep(wait_seconds)
-                
-                if not self.running:
-                    break
-                
-                # 執行爬蟲
-                logger.info("Starting scheduled crawl...")
-                result = await self.orchestrator.run_crawl_session()
-                logger.info(f"Scheduled crawl completed: {result}")
-                
-                # 處理未分類文章
-                process_result = await self.orchestrator.process_unprocessed_articles()
-                if process_result.get("processed_count", 0) > 0:
-                    logger.info(f"Processed {process_result['processed_count']} unclassified articles")
-                
-            except Exception as e:
-                logger.error(f"Scheduled crawler error: {e}")
-                await asyncio.sleep(300)  # 錯誤後等待5分鐘再重試
-    
     async def start_mcp_server(self):
         """啟動MCP Server."""
         logger.info("Starting MCP server...")
         try:
-            uvicorn.run(mcp_app, host="0.0.0.0", port=8000)
+            # 使用 uvicorn 的 serve 方法而不是 run
+            config = uvicorn.Config(mcp_app, host="0.0.0.0", port=8000)
+            server = uvicorn.Server(config)
+            await server.serve()
         except Exception as e:
             logger.error(f"MCP server error: {e}")
     
-    async def run(self, mode: str = "crawler"):
-        """執行應用程式."""
+    async def start_crawler(self):
+        """啟動爬蟲服務."""
+        logger.info("Starting crawler service...")
+        try:
+            while self.running:
+                try:
+                    result = await self.orchestrator.run_crawl_session()
+                    logger.info(f"Crawl session completed: {result}")
+                except Exception as e:
+                    logger.error(f"Crawl session failed: {e}")
+                
+                # 等待下次執行
+                await asyncio.sleep(settings.CRAWL_INTERVAL)
+        except Exception as e:
+            logger.error(f"Crawler service error: {e}")
+    
+    async def run_once(self):
+        """執行一次爬蟲."""
+        logger.info("Running single crawl session...")
+        try:
+            result = await self.orchestrator.run_crawl_session()
+            logger.info(f"Single crawl completed: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Single crawl failed: {e}")
+            return None
+    
+    async def run(self, mode: str):
+        """運行應用程式."""
         if not await self.initialize():
             return
         
         self.running = True
         
-        # 設定信號處理
-        def signal_handler(signum, frame):
-            logger.info(f"Received signal {signum}, shutting down...")
-            self.running = False
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-        
         try:
-            if mode == "crawler":
-                # 只執行爬蟲
-                await self.start_crawler()
-            elif mode == "mcp":
-                # 只執行MCP Server
+            if mode == "mcp":
+                # 只運行 MCP 服務器
                 await self.start_mcp_server()
+            elif mode == "crawler":
+                # 只運行爬蟲服務
+                await self.start_crawler()
+            elif mode == "once":
+                # 執行一次爬蟲
+                await self.run_once()
             elif mode == "both":
-                # 同時執行爬蟲和MCP Server
+                # 同時運行爬蟲和 MCP 服務器
                 self.crawl_task = asyncio.create_task(self.start_crawler())
                 self.mcp_task = asyncio.create_task(self.start_mcp_server())
                 
@@ -157,83 +111,53 @@ class PTTStockCrawlerApp:
                         await task
                     except asyncio.CancelledError:
                         pass
-            elif mode == "scheduled":
-                # 定時執行模式
-                await self.start_scheduled_crawler()
             else:
                 logger.error(f"Unknown mode: {mode}")
                 return
-        
+                
         except KeyboardInterrupt:
-            logger.info("Received keyboard interrupt, shutting down...")
+            logger.info("Received shutdown signal")
         except Exception as e:
             logger.error(f"Application error: {e}")
         finally:
-            self.running = False
-            logger.info("Application shutdown complete")
+            await self.shutdown()
     
-    async def run_once(self):
-        """執行一次爬蟲（用於測試或手動執行）."""
-        if not await self.initialize():
-            return
+    async def shutdown(self):
+        """關閉應用程式."""
+        logger.info("Shutting down application...")
+        self.running = False
         
-        logger.info("Running one-time crawl...")
-        result = await self.orchestrator.run_crawl_session()
-        logger.info(f"Crawl completed: {result}")
+        # 取消任務
+        if self.crawl_task and not self.crawl_task.done():
+            self.crawl_task.cancel()
+            try:
+                await self.crawl_task
+            except asyncio.CancelledError:
+                pass
         
-        # 處理未分類文章
-        process_result = await self.orchestrator.process_unprocessed_articles()
-        logger.info(f"Processing completed: {process_result}")
-def setup_logging():
-    """設定日誌系統."""
-    # 移除預設的日誌處理器
-    logger.remove()
-    
-    # 添加控制台輸出
-    logger.add(
-        sys.stdout,
-        level=settings.log_level,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
-    )
-    
-    # 添加檔案輸出
-    logger.add(
-        settings.log_file,
-        level=settings.log_level,
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
-        rotation="1 day",
-        retention="30 days",
-        compression="zip"
-    )
+        if self.mcp_task and not self.mcp_task.done():
+            self.mcp_task.cancel()
+            try:
+                await self.mcp_task
+            except asyncio.CancelledError:
+                pass
+        
+        logger.info("Application shutdown complete")
+
 async def main():
     """主函數."""
     parser = argparse.ArgumentParser(description="PTT Stock Crawler")
     parser.add_argument(
         "--mode",
-        choices=["crawler", "mcp", "both", "once", "scheduled"],
-        default="crawler",
-        help="運行模式: crawler(爬蟲), mcp(MCP服務器), both(兩者), once(執行一次), scheduled(定時執行)"
-    )
-    parser.add_argument(
-        "--log-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        default=settings.log_level,
-        help="日誌級別"
+        choices=["mcp", "crawler", "once", "both"],
+        default="both",
+        help="運行模式"
     )
     
     args = parser.parse_args()
     
-    # 設定日誌
-    settings.log_level = args.log_level
-    setup_logging()
-    
-    # 建立應用程式
     app = PTTStockCrawlerApp()
-    
-    # 執行應用程式
-    if args.mode == "once":
-        await app.run_once()
-    else:
-        await app.run(args.mode)
+    await app.run(args.mode)
+
 if __name__ == "__main__":
     asyncio.run(main())

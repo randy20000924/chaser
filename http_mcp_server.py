@@ -1,20 +1,18 @@
-#!/usr/bin/env python3
-"""HTTP MCP Server 實作."""
+"""HTTP MCP Server for PTT Stock Crawler."""
 
 import asyncio
-import json
-from typing import List, Dict, Any
-from fastapi import FastAPI, HTTPException
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
+
 from database import db_manager
 from models import PTTArticle, AuthorProfile, CrawlLog
-from loguru import logger
-from article_analyzer import ArticleAnalyzer
-from config import settings
 
-app = FastAPI(title="PTT Stock Crawler MCP Server", version="1.0.0")
+app = FastAPI(title="PTT Stock Crawler API", version="1.0.0")
 
-# 添加CORS中間件
+# 添加 CORS 中間件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,145 +21,71 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# analyzer = ArticleAnalyzer()  # 移除全局實例
-
 @app.get("/")
 async def root():
-    return {"message": "PTT Stock Crawler MCP Server", "version": "1.0.0"}
+    """根路徑."""
+    return {"message": "PTT Stock Crawler API", "status": "running"}
 
-@app.get("/tools")
-async def list_tools():
-    """列出可用工具."""
-    return {
-        "tools": [
-            {
-                "name": "search_articles",
-                "description": "搜尋PTT文章",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "author": {"type": "string", "description": "作者名稱"},
-                        "stock_code": {"type": "string", "description": "股票代碼"},
-                        "days": {"type": "integer", "description": "搜尋天數", "default": 7},
-                        "limit": {"type": "integer", "description": "結果數量限制", "default": 20}
-                    }
-                }
-            },
-            {
-                "name": "analyze_article",
-                "description": "分析文章內容",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "article_id": {"type": "string", "description": "文章ID"}
-                    },
-                    "required": ["article_id"]
-                }
-            },
-            {
-                "name": "get_all_authors",
-                "description": "取得所有作者列表",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {}
-                }
-            }
-        ]
-    }
-
-@app.post("/tools/search_articles")
-async def search_articles(request: Dict[str, Any]):
-    """搜尋文章."""
+@app.get("/health")
+async def health_check():
+    """健康檢查."""
     try:
-        author = request.get("author")
-        stock_code = request.get("stock_code")
-        days = request.get("days", 7)
-        limit = request.get("limit", 20)
-        
+        # 檢查資料庫連接
+        if await db_manager.health_check():
+            return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+        else:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail=str(e))
+
+@app.get("/articles")
+async def get_articles(
+    author: Optional[str] = Query(None, description="作者名稱"),
+    limit: int = Query(50, description="返回數量限制"),
+    offset: int = Query(0, description="偏移量")
+):
+    """獲取文章列表."""
+    try:
         with db_manager.get_session() as session:
             query = session.query(PTTArticle)
             
             if author:
                 query = query.filter(PTTArticle.author == author)
             
-            if stock_code:
-                query = query.filter(PTTArticle.content.contains(stock_code))
-            
-            # 時間過濾
-            from datetime import datetime, timedelta
-            cutoff_date = datetime.now() - timedelta(days=days)
-            query = query.filter(PTTArticle.publish_time >= cutoff_date)
-            
-            articles = query.order_by(PTTArticle.publish_time.desc()).limit(limit).all()
+            articles = query.order_by(PTTArticle.publish_time.desc()).offset(offset).limit(limit).all()
             
             result = []
             for article in articles:
                 result.append({
+                    "id": str(article.id),
                     "article_id": article.article_id,
                     "title": article.title,
                     "author": article.author,
-                    "publish_time": article.publish_time.isoformat() if article.publish_time else None,
+                    "board": article.board,
                     "url": article.url,
-                    "push_count": article.push_count
-                })
-            
-            return {"articles": result, "total": len(result)}
-            
-    except Exception as e:
-        logger.error(f"Error searching articles: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/tools/analyze_article")
-async def analyze_article(request: Dict[str, Any]):
-    """分析文章."""
-    try:
-        article_id = request.get("article_id")
-        if not article_id:
-            raise HTTPException(status_code=400, detail="article_id is required")
-        
-        analyzer = ArticleAnalyzer()  # 每次創建新實例
-        result = analyzer.analyze_article(article_id)
-        logger.info(f"Analysis result for {article_id}: {result}")
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error analyzing article: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/tools/get_all_authors")
-async def get_all_authors():
-    """取得所有作者列表."""
-    try:
-        with db_manager.get_session() as session:
-            from sqlalchemy import func
-            authors = session.query(
-                PTTArticle.author,
-                func.count(PTTArticle.article_id).label('article_count'),
-                func.max(PTTArticle.publish_time).label('last_activity')
-            ).group_by(PTTArticle.author).order_by(
-                func.count(PTTArticle.article_id).desc()
-            ).all()
-            
-            authors_list = []
-            for author, count, last_activity in authors:
-                authors_list.append({
-                    "author": author,
-                    "article_count": count,
-                    "last_activity": last_activity.isoformat() if last_activity else None
+                    "publish_time": article.publish_time.isoformat() if article.publish_time else None,
+                    "push_count": article.push_count,
+                    "stock_symbols": article.stock_symbols,
+                    "is_analyzed": article.is_analyzed,
+                    "llm_sentiment": article.llm_sentiment,
+                    "llm_strategy": article.llm_strategy,
+                    "recommended_stocks": article.recommended_stocks
                 })
             
             return {
-                "authors": authors_list,
-                "total": len(authors_list)
+                "articles": result,
+                "total": len(result),
+                "limit": limit,
+                "offset": offset
             }
-            
     except Exception as e:
-        logger.error(f"Error getting all authors: {e}")
+        logger.error(f"Error getting articles: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/articles/{article_id}/analysis")
-async def get_article_analysis(article_id: str):
-    """直接從資料庫讀取文章分析結果."""
+@app.get("/articles/{article_id}")
+async def get_article(article_id: str):
+    """獲取單篇文章詳情."""
     try:
         with db_manager.get_session() as session:
             article = session.query(PTTArticle).filter(
@@ -171,11 +95,56 @@ async def get_article_analysis(article_id: str):
             if not article:
                 raise HTTPException(status_code=404, detail="Article not found")
             
-            # 如果文章沒有分析結果，返回錯誤
+            return {
+                "id": str(article.id),
+                "article_id": article.article_id,
+                "title": article.title,
+                "author": article.author,
+                "board": article.board,
+                "url": article.url,
+                "content": article.content,
+                "publish_time": article.publish_time.isoformat() if article.publish_time else None,
+                "push_count": article.push_count,
+                "boo_count": article.boo_count,
+                "arrow_count": article.arrow_count,
+                "stock_symbols": article.stock_symbols,
+                "stock_mentions": article.stock_mentions,
+                "category": article.category,
+                "tags": article.tags,
+                "sentiment": article.sentiment,
+                "analysis_result": article.analysis_result,
+                "analysis_time": article.analysis_time.isoformat() if article.analysis_time else None,
+                "recommended_stocks": article.recommended_stocks,
+                "analysis_reason": article.analysis_reason,
+                "llm_sentiment": article.llm_sentiment,
+                "llm_sectors": article.llm_sectors,
+                "llm_strategy": article.llm_strategy,
+                "llm_risk_level": article.llm_risk_level,
+                "is_processed": article.is_processed,
+                "is_analyzed": article.is_analyzed,
+                "is_relevant": article.is_relevant
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting article {article_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/articles/{article_id}/analysis")
+async def get_article_analysis(article_id: str):
+    """獲取文章分析結果."""
+    try:
+        with db_manager.get_session() as session:
+            article = session.query(PTTArticle).filter(
+                PTTArticle.article_id == article_id
+            ).first()
+            
+            if not article:
+                raise HTTPException(status_code=404, detail="Article not found")
+            
             if not article.is_analyzed or not article.analysis_result:
                 raise HTTPException(status_code=404, detail="Article analysis not available")
             
-            # 返回分析結果
             return {
                 "author": article.author,
                 "date": article.publish_time.strftime('%Y-%m-%d') if article.publish_time else 'N/A',
@@ -184,14 +153,87 @@ async def get_article_analysis(article_id: str):
                 "reason": article.analysis_reason or "技術分析",
                 "llm_analysis": article.analysis_result
             }
-            
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting article analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/authors")
+async def get_authors():
+    """獲取作者列表."""
+    try:
+        with db_manager.get_session() as session:
+            authors = session.query(PTTArticle.author).distinct().all()
+            author_list = [author[0] for author in authors]
+            
+            return {
+                "authors": author_list,
+                "total": len(author_list)
+            }
+    except Exception as e:
+        logger.error(f"Error getting authors: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/authors/{author_name}/articles")
+async def get_author_articles(
+    author_name: str,
+    limit: int = Query(50, description="返回數量限制"),
+    offset: int = Query(0, description="偏移量")
+):
+    """獲取特定作者的文章."""
+    try:
+        with db_manager.get_session() as session:
+            articles = session.query(PTTArticle).filter(
+                PTTArticle.author == author_name
+            ).order_by(PTTArticle.publish_time.desc()).offset(offset).limit(limit).all()
+            
+            result = []
+            for article in articles:
+                result.append({
+                    "id": str(article.id),
+                    "article_id": article.article_id,
+                    "title": article.title,
+                    "url": article.url,
+                    "publish_time": article.publish_time.isoformat() if article.publish_time else None,
+                    "push_count": article.push_count,
+                    "stock_symbols": article.stock_symbols,
+                    "is_analyzed": article.is_analyzed,
+                    "llm_sentiment": article.llm_sentiment,
+                    "llm_strategy": article.llm_strategy,
+                    "recommended_stocks": article.recommended_stocks
+                })
+            
+            return {
+                "author": author_name,
+                "articles": result,
+                "total": len(result),
+                "limit": limit,
+                "offset": offset
+            }
+    except Exception as e:
+        logger.error(f"Error getting author articles: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats")
+async def get_stats():
+    """獲取統計信息."""
+    try:
+        with db_manager.get_session() as session:
+            total_articles = session.query(PTTArticle).count()
+            analyzed_articles = session.query(PTTArticle).filter(PTTArticle.is_analyzed == True).count()
+            total_authors = session.query(PTTArticle.author).distinct().count()
+            
+            return {
+                "total_articles": total_articles,
+                "analyzed_articles": analyzed_articles,
+                "total_authors": total_authors,
+                "analysis_rate": f"{(analyzed_articles / total_articles * 100):.1f}%" if total_articles > 0 else "0%"
+            }
+    except Exception as e:
+        logger.error(f"Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"Starting HTTP MCP Server on {settings.mcp_server_host}:{settings.mcp_server_port}")
-    uvicorn.run(app, host=settings.mcp_server_host, port=settings.mcp_server_port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

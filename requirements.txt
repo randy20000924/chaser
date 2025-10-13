@@ -34,3 +34,5 @@ pytz==2025.2
 
 # LLM Integration
 ollama==0.4.2
+fastapi
+uvicorn
