@@ -64,7 +64,6 @@ class StockValidator:
             'NOW', 'FIND', 'LONG', 'DOWN', 'DAY', 'DID', 'GET', 'COME', 'MADE', 'MAY', 'PART',
             # 添加更多常見的誤判詞彙
             'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-            'SW', 'AUR', 'PL', 'LEU', 'RKLB', 'DKNG', 'KRMN'
         }
         
         if code in excluded:
