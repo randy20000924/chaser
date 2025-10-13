@@ -122,7 +122,7 @@ class PTTCrawler:
             logger.error(f"Error extracting and validating stocks: {e}")
             return []
     
-    async def _get_article_content(self, article_url: str) -> Optional[Dict]:
+    async def _get_article_content(self, article_url: str, article: Dict = None) -> Optional[Dict]:
         """取得文章詳細內容並進行 LLM 分析."""
         html = await self._get_page(article_url)
         if not html:
@@ -180,8 +180,12 @@ class PTTCrawler:
                 
                 return {
                     'article_id': article_id,
+                    'title': article.get('title', ''),
+                    'author': article.get('author', ''),
+                    'url': article_url,
                     'content': content,
                     'publish_time': publish_time,
+                    'push_count': article.get('push_count', 0),
                     'stock_symbols': stock_symbols,
                     'validated_stocks': validated_stocks,  # 添加驗證後的股票信息
                     'analysis_result': analysis_result
@@ -192,8 +196,12 @@ class PTTCrawler:
                 # 即使分析失敗，也返回基本內容
                 return {
                     'article_id': article_id,
+                    'title': article.get('title', ''),
+                    'author': article.get('author', ''),
+                    'url': article_url,
                     'content': content,
                     'publish_time': publish_time,
+                    'push_count': article.get('push_count', 0),
                     'stock_symbols': stock_symbols,
                     'validated_stocks': validated_stocks,
                     'analysis_result': None
@@ -287,7 +295,7 @@ class PTTCrawler:
                     logger.info(f"Processing article: {article['title']}")
                     
                     # 取得文章詳細內容
-                    article_data = await self._get_article_content(article['url'])
+                    article_data = await self._get_article_content(article['url'], article)
                     if not article_data:
                         continue
                     
