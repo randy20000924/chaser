@@ -12,7 +12,7 @@ class ArticleAnalyzer:
     
     def __init__(self):
         self.ollama_url = "http://localhost:11434"
-        self.model_name = "Qwen2.5:0.5b-instruct-q4_K_M"  # 使用量化版本
+        self.model_name = "tinyllama:1.1b"  # 使用更小的模型
     
     async def _analyze_with_llm(self, content: str) -> Dict[str, Any]:
         """使用 LLM 分析文章內容."""
@@ -109,6 +109,21 @@ JSON: {{"stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因"}}"""
             
         except Exception as e:
             logger.error(f"Error analyzing article {article.article_id}: {e}")
+            return self._get_default_analysis()
+    
+    async def _analyze_content_simple(self, content: str) -> Dict[str, Any]:
+        """簡化的文章內容分析（用於混合模式）."""
+        try:
+            logger.info("Starting simple LLM analysis")
+            
+            # 使用LLM分析
+            analysis = await self._analyze_with_llm(content)
+            
+            logger.info("Simple LLM analysis completed")
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Error in simple LLM analysis: {e}")
             return self._get_default_analysis()
 
 # 創建全局實例
