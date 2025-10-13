@@ -17,20 +17,10 @@ class ArticleAnalyzer:
     async def _analyze_with_llm(self, content: str) -> Dict[str, Any]:
         """使用 LLM 分析文章內容."""
         try:
-            # 進一步簡化提示詞，減少處理負擔
-            prompt = f"""分析PTT股票文章：
+            # 極簡化提示詞，最小化處理負擔
+            prompt = f"""分析股票文章：{content[:200]}
 
-{content[:500]}...
-
-返回JSON：
-{{
-    "recommended_stocks": ["代碼1", "代碼2"],
-    "reason": "簡短原因",
-    "sentiment": "positive/negative/neutral",
-    "sectors": ["產業"],
-    "strategy": "策略",
-    "risk_level": "low/medium/high"
-}}"""
+JSON: {{"stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因"}}"""
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -40,13 +30,15 @@ class ArticleAnalyzer:
                         "prompt": prompt,
                         "stream": False,
                         "options": {
-                            "temperature": 0.5,
-                            "max_tokens": 200,  # 進一步限制輸出長度
-                            "num_ctx": 1024,    # 限制上下文長度
-                            "num_predict": 200  # 限制預測長度
+                            "temperature": 0.3,
+                            "max_tokens": 100,   # 大幅減少輸出長度
+                            "num_ctx": 512,      # 大幅減少上下文長度
+                            "num_predict": 100,  # 大幅減少預測長度
+                            "num_thread": 1,     # 限制線程數
+                            "num_gpu": 0         # 禁用 GPU
                         }
                     },
-                    timeout=aiohttp.ClientTimeout(total=15)  # 減少超時時間
+                    timeout=aiohttp.ClientTimeout(total=10)  # 進一步減少超時時間
                 ) as response:
                     if response.status == 200:
                         result = await response.json()

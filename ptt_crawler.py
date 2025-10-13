@@ -14,6 +14,7 @@ from loguru import logger
 from config import settings
 from models import PTTArticle
 from article_analyzer import analyzer
+from simple_analyzer import simple_analyzer
 from stock_validator import stock_validator
 
 class PTTCrawler:
@@ -172,8 +173,8 @@ class PTTCrawler:
                     stock_symbols=stock_symbols
                 )
                 
-                # 進行 LLM 分析
-                analysis_result = await self.analyzer._analyze_content(temp_article)
+                # 使用輕量分析器（避免 LLM 高負載）
+                analysis_result = await simple_analyzer.analyze_content(content)
                 
                 logger.info(f"LLM analysis completed for article: {article_id}")
                 
