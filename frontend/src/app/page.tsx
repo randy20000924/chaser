@@ -43,7 +43,11 @@ export default function Home() {
     try {
       const response = await fetch('/api/authors');
       const data = await response.json();
-      setAuthors(data.authors || []);
+      // 後端回傳格式為 { authors: string[] }
+      const list: Author[] = Array.isArray(data.authors)
+        ? data.authors.map((a: string) => ({ author: a, article_count: 0, last_activity: '' }))
+        : [];
+      setAuthors(list);
     } catch (error) {
       console.error('Error fetching authors:', error);
     }
@@ -54,7 +58,8 @@ export default function Home() {
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/authors?author=${encodeURIComponent(searchQuery)}`);
+      // 後端正確路由：/api/authors/{author_name}/articles
+      const response = await fetch(`/api/authors/${encodeURIComponent(searchQuery)}/articles`);
       const data = await response.json();
       setArticles(data.articles || []);
       setSelectedAuthor(searchQuery);
