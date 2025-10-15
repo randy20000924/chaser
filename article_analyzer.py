@@ -18,9 +18,12 @@ class ArticleAnalyzer:
         """使用 LLM 分析文章內容."""
         try:
             # 極簡化提示詞，最小化處理負擔
-            prompt = f"""分析股票文章：{content[:200]}
+            prompt = f"""請分析以下股票文章並只返回JSON格式，不要其他文字：
 
-JSON: {{"recommended_stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因","sectors":["產業"],"strategy":"策略","risk_level":"low/medium/high"}}"""
+{content[:200]}
+
+必須返回以下JSON格式：
+{{"recommended_stocks":["股票代碼"],"sentiment":"pos/neg/neu","reason":"分析原因","sectors":["產業類別"],"strategy":"投資策略","risk_level":"low/medium/high"}}"""
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(

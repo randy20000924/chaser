@@ -234,6 +234,8 @@ export default function Home() {
                         <span>
                           推文: {article.push_count >= 100 ? (
                             <span className="text-red-600 font-bold">爆</span>
+                          ) : article.push_count === -1 ? (
+                            <span className="text-gray-600 font-bold">X</span>
                           ) : (
                             article.push_count
                           )}
