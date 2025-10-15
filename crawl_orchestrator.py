@@ -75,7 +75,16 @@ class CrawlOrchestrator:
         with db_manager.get_session() as session:
             for article_data in articles_data:
                 try:
-                    # 由於爬蟲階段已經檢查過重複，這裡直接創建新文章
+                    # 再次檢查是否重複（雙重保險）
+                    existing_article = session.query(PTTArticle).filter(
+                        (PTTArticle.article_id == article_data['article_id']) |
+                        (PTTArticle.url == article_data.get('url', ''))
+                    ).first()
+                    
+                    if existing_article:
+                        logger.info(f"Article {article_data['article_id']} or URL already exists, skipping")
+                        continue
+                    
                     logger.info(f"Saving new article: {article_data['article_id']}")
                     new_article = PTTArticle(
                         article_id=article_data['article_id'],
@@ -111,6 +120,10 @@ class CrawlOrchestrator:
                 except Exception as e:
                     logger.error(f"Error saving article {article_data.get('article_id', 'N/A')}: {e}")
                     session.rollback()
+                    # 如果是重複鍵錯誤，記錄但不中斷處理
+                    if "duplicate key value violates unique constraint" in str(e):
+                        logger.warning(f"Duplicate article detected, skipping: {article_data.get('article_id', 'N/A')}")
+                        continue
             
             logger.info(f"Saved {saved_count} articles, analyzed {analyzed_count} articles")
             return saved_count, analyzed_count

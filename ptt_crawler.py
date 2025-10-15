@@ -87,16 +87,23 @@ class PTTCrawler:
         except:
             return url.split('/')[-1].replace('.html', '')
     
-    async def _is_article_exists(self, article_id: str) -> bool:
+    async def _is_article_exists(self, article_id: str, url: str = None) -> bool:
         """檢查文章是否已存在於資料庫中."""
         try:
             from database import db_manager
             from models import PTTArticle
             
             with db_manager.get_session() as session:
-                existing_article = session.query(PTTArticle).filter(
+                # 同時檢查 article_id 和 url
+                query = session.query(PTTArticle).filter(
                     PTTArticle.article_id == article_id
-                ).first()
+                )
+                if url:
+                    query = query.union(
+                        session.query(PTTArticle).filter(PTTArticle.url == url)
+                    )
+                
+                existing_article = query.first()
                 return existing_article is not None
         except Exception as e:
             logger.error(f"Error checking if article exists: {e}")
@@ -355,8 +362,8 @@ class PTTCrawler:
                     
                     # 先檢查文章是否已存在於資料庫
                     article_id = self._extract_article_id(article['url'])
-                    if article_id and await self._is_article_exists(article_id):
-                        logger.info(f"Article {article_id} already exists, skipping")
+                    if article_id and await self._is_article_exists(article_id, article['url']):
+                        logger.info(f"Article {article_id} or URL {article['url']} already exists, skipping")
                         continue
                     
                     # 取得文章詳細內容
