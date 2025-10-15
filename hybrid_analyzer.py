@@ -12,7 +12,7 @@ class HybridAnalyzer:
     def __init__(self):
         self.llm_analyzer = analyzer
         self.rule_analyzer = simple_analyzer
-        self.llm_timeout = 30  # LLM 超時時間（秒）
+        self.llm_timeout = 5  # LLM 超時時間（秒）
     
     async def analyze_content(self, content: str) -> Dict[str, Any]:
         """分析文章內容 - 混合模式."""
