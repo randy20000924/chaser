@@ -75,74 +75,36 @@ class CrawlOrchestrator:
         with db_manager.get_session() as session:
             for article_data in articles_data:
                 try:
-                    # 檢查文章是否已存在
-                    existing_article = session.query(PTTArticle).filter(
-                        PTTArticle.article_id == article_data['article_id']
-                    ).first()
+                    # 由於爬蟲階段已經檢查過重複，這裡直接創建新文章
+                    logger.info(f"Saving new article: {article_data['article_id']}")
+                    new_article = PTTArticle(
+                        article_id=article_data['article_id'],
+                        title=article_data.get('title', 'N/A'),
+                        author=article_data.get('author', 'N/A'),
+                        board=self.crawler.stock_board,
+                        url=article_data.get('url', ''),
+                        content=article_data.get('content', ''),
+                        publish_time=article_data.get('publish_time', datetime.utcnow()),
+                        push_count=article_data.get('push_count', 0),
+                        stock_symbols=article_data.get('stock_symbols', []),
+                        crawl_time=datetime.utcnow()
+                    )
                     
-                    if existing_article:
-                        # 如果文章已存在且已分析，跳過
-                        if existing_article.is_analyzed:
-                            logger.info(f"Article {article_data['article_id']} already analyzed, skipping")
-                            continue
-                        
-                        # 更新現有文章
-                        logger.info(f"Updating existing article: {article_data['article_id']}")
-                        existing_article.title = article_data.get('title', existing_article.title)
-                        existing_article.author = article_data.get('author', existing_article.author)
-                        existing_article.url = article_data.get('url', existing_article.url)
-                        existing_article.content = article_data.get('content', existing_article.content)
-                        existing_article.publish_time = article_data.get('publish_time', existing_article.publish_time)
-                        existing_article.crawl_time = datetime.utcnow()
-                        existing_article.push_count = article_data.get('push_count', existing_article.push_count)
-                        existing_article.stock_symbols = article_data.get('stock_symbols', existing_article.stock_symbols)
-                        
-                        # 更新 LLM 分析結果
-                        analysis = article_data.get('analysis_result')
-                        if analysis:
-                            existing_article.analysis_result = analysis
-                            existing_article.analysis_time = datetime.utcnow()
-                            existing_article.recommended_stocks = analysis.get('recommended_stocks')
-                            existing_article.analysis_reason = analysis.get('reason')
-                            existing_article.llm_sentiment = analysis.get('sentiment')
-                            existing_article.llm_sectors = analysis.get('sectors')
-                            existing_article.llm_strategy = analysis.get('strategy')
-                            existing_article.llm_risk_level = analysis.get('risk_level')
-                            existing_article.is_analyzed = True
-                            analyzed_count += 1
-                        
-                    else:
-                        # 創建新文章
-                        logger.info(f"Saving new article: {article_data['article_id']}")
-                        new_article = PTTArticle(
-                            article_id=article_data['article_id'],
-                            title=article_data.get('title', 'N/A'),
-                            author=article_data.get('author', 'N/A'),
-                            board=self.crawler.stock_board,
-                            url=article_data['url'],
-                            content=article_data.get('content', ''),
-                            publish_time=article_data.get('publish_time', datetime.utcnow()),
-                            push_count=article_data.get('push_count', 0),
-                            stock_symbols=article_data.get('stock_symbols', []),
-                            crawl_time=datetime.utcnow()
-                        )
-                        
-                        # 添加 LLM 分析結果
-                        analysis = article_data.get('analysis_result')
-                        if analysis:
-                            new_article.analysis_result = analysis
-                            new_article.analysis_time = datetime.utcnow()
-                            new_article.recommended_stocks = analysis.get('recommended_stocks')
-                            new_article.analysis_reason = analysis.get('reason')
-                            new_article.llm_sentiment = analysis.get('sentiment')
-                            new_article.llm_sectors = analysis.get('sectors')
-                            new_article.llm_strategy = analysis.get('strategy')
-                            new_article.llm_risk_level = analysis.get('risk_level')
-                            new_article.is_analyzed = True
-                            analyzed_count += 1
-                        
-                        session.add(new_article)
+                    # 添加 LLM 分析結果
+                    analysis = article_data.get('analysis_result')
+                    if analysis:
+                        new_article.analysis_result = analysis
+                        new_article.analysis_time = datetime.utcnow()
+                        new_article.recommended_stocks = analysis.get('recommended_stocks')
+                        new_article.analysis_reason = analysis.get('reason')
+                        new_article.llm_sentiment = analysis.get('sentiment')
+                        new_article.llm_sectors = analysis.get('sectors')
+                        new_article.llm_strategy = analysis.get('strategy')
+                        new_article.llm_risk_level = analysis.get('risk_level')
+                        new_article.is_analyzed = True
+                        analyzed_count += 1
                     
+                    session.add(new_article)
                     session.commit()
                     saved_count += 1
                     

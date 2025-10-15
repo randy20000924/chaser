@@ -87,6 +87,21 @@ class PTTCrawler:
         except:
             return url.split('/')[-1].replace('.html', '')
     
+    async def _is_article_exists(self, article_id: str) -> bool:
+        """檢查文章是否已存在於資料庫中."""
+        try:
+            from database import db_manager
+            from models import PTTArticle
+            
+            with db_manager.get_session() as session:
+                existing_article = session.query(PTTArticle).filter(
+                    PTTArticle.article_id == article_id
+                ).first()
+                return existing_article is not None
+        except Exception as e:
+            logger.error(f"Error checking if article exists: {e}")
+            return False
+    
     def _extract_publish_time(self, soup: BeautifulSoup) -> datetime:
         """提取發文時間."""
         try:
@@ -294,6 +309,12 @@ class PTTCrawler:
                 try:
                     logger.info(f"Processing article: {article['title']}")
                     
+                    # 先檢查文章是否已存在於資料庫
+                    article_id = self._extract_article_id(article['url'])
+                    if article_id and await self._is_article_exists(article_id):
+                        logger.info(f"Article {article_id} already exists, skipping")
+                        continue
+                    
                     # 取得文章詳細內容
                     article_data = await self._get_article_content(article['url'])
                     if not article_data:
@@ -321,7 +342,7 @@ class PTTCrawler:
                     logger.error(f"Error processing article {article.get('title', 'Unknown')}: {e}")
                     continue
             
-            logger.info(f"Found {len(processed_articles)} articles for author {author}")
+            logger.info(f"Found {len(processed_articles)} new articles for author {author}")
             return processed_articles
             
         except Exception as e:
