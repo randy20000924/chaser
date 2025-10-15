@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
 
-const MCP_SERVER_URL = process.env.MCP_SERVER_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.chaser.cloud/api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,12 +10,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Article ID is required' }, { status: 400 });
     }
 
-    // 調用 MCP Server 的 analyze_article 工具
-    const response = await axios.post(`${MCP_SERVER_URL}/tools/analyze_article`, {
-      article_id: articleId
-    });
+    // 直接從後端 API 獲取分析結果
+    const response = await fetch(`${BACKEND_URL}/articles/${articleId}/analysis`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-    return NextResponse.json(response.data);
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error getting article analysis:', error);
     return NextResponse.json({ error: 'Failed to get article analysis' }, { status: 500 });

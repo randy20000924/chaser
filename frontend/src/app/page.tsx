@@ -84,7 +84,7 @@ export default function Home() {
   const analyzeArticle = async (articleId: string) => {
     setLoading(true);
     try {
-      const response = await fetch('/api/analyze', {
+      const response = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
