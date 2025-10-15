@@ -103,22 +103,25 @@ export default function Home() {
     setLoading(true);
     try {
       console.log(`Analyzing article: ${articleId}`);
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ articleId }),
-      });
+      const response = await fetch(`${API_BASE}/articles/${articleId}/analysis`);
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        throw new Error(`HTTP ${response.status}`);
       }
       
       const data = await response.json();
       console.log('Analysis result:', data);
-      setAnalysis(data);
+      
+      // 格式化數據以符合前端期望
+      const formattedData = {
+        author: data.author || 'Unknown',
+        date: data.date || new Date().toISOString().split('T')[0],
+        url: data.url || '',
+        recommended_stocks: data.recommended_stocks || [],
+        reason: data.reason || 'No analysis available'
+      };
+      
+      setAnalysis(formattedData);
     } catch (error) {
       console.error('Error analyzing article:', error);
       // 顯示錯誤信息給用戶
