@@ -51,11 +51,29 @@ export default function Home() {
       }
       const data = await response.json();
       console.log('Authors response:', data);
-      // 後端回傳格式為 { authors: string[] }
-      const list: Author[] = Array.isArray(data.authors)
-        ? data.authors.map((a: string) => ({ author: a, article_count: 0, last_activity: '' }))
-        : [];
-      setAuthors(list);
+      
+      // 為每個作者獲取文章數量
+      const authorsWithCounts = await Promise.all(
+        data.authors.map(async (author: string) => {
+          try {
+            const authorResponse = await fetch(`${API_BASE}/authors/${encodeURIComponent(author)}/articles`);
+            if (authorResponse.ok) {
+              const authorData = await authorResponse.json();
+              return {
+                author,
+                article_count: authorData.total || 0,
+                last_activity: authorData.articles?.[0]?.publish_time || ''
+              };
+            }
+            return { author, article_count: 0, last_activity: '' };
+          } catch (error) {
+            console.error(`Error fetching articles for ${author}:`, error);
+            return { author, article_count: 0, last_activity: '' };
+          }
+        })
+      );
+      
+      setAuthors(authorsWithCounts);
     } catch (error) {
       console.error('Error fetching authors:', error);
     }
@@ -84,17 +102,33 @@ export default function Home() {
   const analyzeArticle = async (articleId: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/analyze`, {
+      console.log(`Analyzing article: ${articleId}`);
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ articleId }),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('Analysis result:', data);
       setAnalysis(data);
     } catch (error) {
       console.error('Error analyzing article:', error);
+      // 顯示錯誤信息給用戶
+      setAnalysis({
+        author: 'Error',
+        date: new Date().toISOString().split('T')[0],
+        url: '',
+        recommended_stocks: [],
+        reason: `分析失敗: ${error instanceof Error ? error.message : '未知錯誤'}`
+      });
     } finally {
       setLoading(false);
     }
