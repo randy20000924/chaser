@@ -109,16 +109,42 @@ class PTTCrawler:
             time_elements = soup.find_all('span', class_='article-meta-value')
             for element in time_elements:
                 text = element.get_text().strip()
+                logger.debug(f"Found time element: {text}")
+                
+                # 嘗試解析中文日期格式 (2025年10月15日)
                 if '年' in text and '月' in text and '日' in text:
-                    # 解析中文日期格式
                     time_match = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', text)
                     if time_match:
                         year, month, day = time_match.groups()
+                        logger.info(f"Parsed Chinese date: {year}-{month}-{day}")
                         return datetime(int(year), int(month), int(day))
+                
+                # 嘗試解析英文日期格式 (10/15/2025)
+                elif '/' in text and len(text.split('/')) == 3:
+                    try:
+                        parts = text.split('/')
+                        if len(parts) == 3:
+                            month, day, year = parts
+                            # 處理兩位數年份
+                            if len(year) == 2:
+                                year = '20' + year
+                            logger.info(f"Parsed English date: {year}-{month}-{day}")
+                            return datetime(int(year), int(month), int(day))
+                    except ValueError:
+                        continue
+                
+                # 嘗試解析 ISO 格式 (2025-10-15)
+                elif re.match(r'\d{4}-\d{1,2}-\d{1,2}', text):
+                    try:
+                        logger.info(f"Parsed ISO date: {text}")
+                        return datetime.fromisoformat(text)
+                    except ValueError:
+                        continue
             
-            # 如果找不到，返回當前時間
+            logger.warning("Could not parse publish time, using current time")
             return datetime.now()
-        except:
+        except Exception as e:
+            logger.error(f"Error parsing publish time: {e}")
             return datetime.now()
     
     async def _extract_and_validate_stocks(self, content: str) -> List[Dict]:
