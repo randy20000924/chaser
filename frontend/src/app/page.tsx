@@ -27,6 +27,7 @@ interface Analysis {
 }
 
 export default function Home() {
+  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || '';
   const [authors, setAuthors] = useState<Author[]>([]);
   const [selectedAuthor, setSelectedAuthor] = useState('');
   const [articles, setArticles] = useState<Article[]>([]);
@@ -41,7 +42,10 @@ export default function Home() {
 
   const fetchAuthors = async () => {
     try {
-      const response = await fetch('/api/authors');
+      const response = await fetch(`${API_BASE}/authors`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       const data = await response.json();
       // 後端回傳格式為 { authors: string[] }
       const list: Author[] = Array.isArray(data.authors)
@@ -59,7 +63,10 @@ export default function Home() {
     setLoading(true);
     try {
       // 後端正確路由：/api/authors/{author_name}/articles
-      const response = await fetch(`/api/authors/${encodeURIComponent(searchQuery)}/articles`);
+      const response = await fetch(`${API_BASE}/authors/${encodeURIComponent(searchQuery)}/articles`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       const data = await response.json();
       setArticles(data.articles || []);
       setSelectedAuthor(searchQuery);
