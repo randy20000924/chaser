@@ -111,8 +111,26 @@ class PTTCrawler:
                 text = element.get_text().strip()
                 logger.debug(f"Found time element: {text}")
                 
+                # 嘗試解析 PTT 完整時間戳格式 (Wed Oct 15 13:16:00 2025)
+                ptt_timestamp_match = re.search(r'(\w{3})\s+(\w{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(\d{4})', text)
+                if ptt_timestamp_match:
+                    try:
+                        day_name, month_name, day, hour, minute, second, year = ptt_timestamp_match.groups()
+                        # 轉換月份名稱
+                        month_map = {
+                            'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+                            'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+                        }
+                        month = month_map.get(month_name, 1)
+                        parsed_time = datetime(int(year), month, int(day), int(hour), int(minute), int(second))
+                        logger.info(f"Parsed PTT timestamp: {parsed_time}")
+                        return parsed_time
+                    except (ValueError, KeyError) as e:
+                        logger.warning(f"Failed to parse PTT timestamp: {e}")
+                        continue
+                
                 # 嘗試解析中文日期格式 (2025年10月15日)
-                if '年' in text and '月' in text and '日' in text:
+                elif '年' in text and '月' in text and '日' in text:
                     time_match = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', text)
                     if time_match:
                         year, month, day = time_match.groups()

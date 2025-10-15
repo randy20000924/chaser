@@ -38,7 +38,7 @@ JSON: {{"stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因"}}"""
                             "num_gpu": 0         # 禁用 GPU
                         }
                     },
-                    timeout=aiohttp.ClientTimeout(total=10)  # 進一步減少超時時間
+                    timeout=aiohttp.ClientTimeout(total=30)  # 增加超時時間到 30 秒
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
@@ -101,17 +101,11 @@ JSON: {{"stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因"}}"""
         try:
             logger.info(f"Analyzing article: {article.article_id}")
             
-            # 使用 8 秒超時包裝 LLM 分析
-            try:
-                analysis = await asyncio.wait_for(
-                    self._analyze_with_llm(article.content),
-                    timeout=8.0
-                )
-                logger.info(f"Analysis completed for article: {article.article_id}")
-                return analysis
-            except asyncio.TimeoutError:
-                logger.warning(f"LLM analysis timeout for article: {article.article_id}")
-                return self._get_default_analysis()
+            # 使用LLM分析
+            analysis = await self._analyze_with_llm(article.content)
+            
+            logger.info(f"Analysis completed for article: {article.article_id}")
+            return analysis
             
         except Exception as e:
             logger.error(f"Error analyzing article {article.article_id}: {e}")
