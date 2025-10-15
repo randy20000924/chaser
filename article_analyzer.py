@@ -20,7 +20,7 @@ class ArticleAnalyzer:
             # 極簡化提示詞，最小化處理負擔
             prompt = f"""分析股票文章：{content[:200]}
 
-JSON: {{"stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因"}}"""
+JSON: {{"recommended_stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因","sectors":["產業"],"strategy":"策略","risk_level":"low/medium/high"}}"""
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(

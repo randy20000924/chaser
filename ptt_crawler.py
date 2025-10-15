@@ -323,6 +323,12 @@ class PTTCrawler:
                         push_text = push_element.get_text().strip()
                         if push_text.isdigit():
                             push_count = int(push_text)
+                        elif push_text == '爆':
+                            push_count = 100  # PTT 的"爆"表示推文數超過100
+                        elif push_text == 'X':
+                            push_count = -1  # PTT 的"X"表示被噓爆
+                        elif push_text == '→':
+                            push_count = 0  # PTT 的"→"表示沒有推文
                     
                     # 提取日期
                     date_element = element.find('div', class_='date')
