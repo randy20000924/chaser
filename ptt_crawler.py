@@ -92,18 +92,17 @@ class PTTCrawler:
         try:
             from database import db_manager
             from models import PTTArticle
+            from sqlalchemy import or_
             
             with db_manager.get_session() as session:
-                # 同時檢查 article_id 和 url
-                query = session.query(PTTArticle).filter(
-                    PTTArticle.article_id == article_id
-                )
+                # 使用 OR 條件而不是 UNION 來避免 JSON 字段問題
+                conditions = [PTTArticle.article_id == article_id]
                 if url:
-                    query = query.union(
-                        session.query(PTTArticle).filter(PTTArticle.url == url)
-                    )
+                    conditions.append(PTTArticle.url == url)
                 
-                existing_article = query.first()
+                existing_article = session.query(PTTArticle).filter(
+                    or_(*conditions)
+                ).first()
                 return existing_article is not None
         except Exception as e:
             logger.error(f"Error checking if article exists: {e}")

@@ -76,9 +76,12 @@ class CrawlOrchestrator:
             for article_data in articles_data:
                 try:
                     # 再次檢查是否重複（雙重保險）
+                    from sqlalchemy import or_
                     existing_article = session.query(PTTArticle).filter(
-                        (PTTArticle.article_id == article_data['article_id']) |
-                        (PTTArticle.url == article_data.get('url', ''))
+                        or_(
+                            PTTArticle.article_id == article_data['article_id'],
+                            PTTArticle.url == article_data.get('url', '')
+                        )
                     ).first()
                     
                     if existing_article:
