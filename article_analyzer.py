@@ -38,7 +38,7 @@ JSON: {{"stocks":["代碼"],"sentiment":"pos/neg/neu","reason":"原因"}}"""
                             "num_gpu": 0         # 禁用 GPU
                         }
                     },
-                    timeout=aiohttp.ClientTimeout(total=60)  # 增加超時時間到 60 秒
+                    timeout=aiohttp.ClientTimeout(total=120)  # 增加超時時間到 120 秒 (2分鐘)
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
