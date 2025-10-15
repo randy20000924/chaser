@@ -27,7 +27,8 @@ interface Analysis {
 }
 
 export default function Home() {
-  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+  // 使用環境變數或默認的後端 URL
+  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://www.chaser.cloud/api';
   const [authors, setAuthors] = useState<Author[]>([]);
   const [selectedAuthor, setSelectedAuthor] = useState('');
   const [articles, setArticles] = useState<Article[]>([]);
@@ -42,11 +43,14 @@ export default function Home() {
 
   const fetchAuthors = async () => {
     try {
-      const response = await fetch(`${API_BASE}/authors`);
+      const url = `${API_BASE}/authors`;
+      console.log('Fetching authors from:', url);
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       const data = await response.json();
+      console.log('Authors response:', data);
       // 後端回傳格式為 { authors: string[] }
       const list: Author[] = Array.isArray(data.authors)
         ? data.authors.map((a: string) => ({ author: a, article_count: 0, last_activity: '' }))
