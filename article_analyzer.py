@@ -18,7 +18,7 @@ class ArticleAnalyzer:
         """使用 LLM 分析文章內容."""
         try:
             # 極簡化提示詞，最小化處理負擔
-            prompt = f"""請分析以下股票文章並只返回JSON格式，不要其他文字：
+            prompt = f"""你是一個專業的股票分析師，請分析以下股票文章並只返回JSON格式，不要其他文字：
 
 {content[:200]}
 
