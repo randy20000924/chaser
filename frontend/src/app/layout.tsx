@@ -16,8 +16,11 @@ export const metadata: Metadata = {
   title: "Chaser: chase your life!",
   description: "PTT股票版智能分析平台 - 追蹤投資機會，掌握市場脈動",
   icons: {
-    icon: '/chaser-logo.png',
-    shortcut: '/chaser-logo.png',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/chaser-logo.png', type: 'image/png' }
+    ],
+    shortcut: '/favicon.ico',
     apple: '/chaser-logo.png',
   },
 };
