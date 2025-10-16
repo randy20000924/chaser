@@ -149,7 +149,7 @@ export default function Home() {
                 alt="Chaser Logo" 
                 className="h-8 w-auto"
               />
-              <h1 className="ml-2 text-xl font-semibold text-black">Chaser: chase your life!</h1>
+              <h1 className="ml-2 text-xl font-semibold text-black"></h1>
             </div>
             <div className="text-sm text-gray-500">
               每天下午3點自動更新

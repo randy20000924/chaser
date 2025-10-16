@@ -14,14 +14,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Chaser: chase your life!",
-  description: "PTT股票版智能分析平台 - 追蹤投資機會，掌握市場脈動",
+  description: "Chaser: Chase your life!",
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/chaser-logo.png', type: 'image/png' }
-    ],
-    shortcut: '/favicon.ico',
-    apple: '/chaser-logo.png',
+    icon: '../public/chaser.ico',
+    shortcut: '../public/chaser.ico',
+    apple: '../public/chaser.ico',
   },
 };
 
