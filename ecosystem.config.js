@@ -49,7 +49,7 @@ module.exports = {
     {
       name: 'chaser-scheduler',
       script: '/var/www/chaser/venv/bin/python',
-      args: 'auto_crawler.py',
+      args: 'smart_auto_crawler.py',
       cwd: '/var/www/chaser',
       user: 'www-data',
       instances: 1,

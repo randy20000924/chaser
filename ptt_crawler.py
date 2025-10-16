@@ -104,18 +104,30 @@ class PTTCrawler:
         except:
             return url.split('/')[-1].replace('.html', '')
     
-    async def _is_article_exists(self, article_id: str, url: str = None) -> bool:
+    async def _is_article_exists(self, article_id: str, url: str = None, publish_time: datetime = None) -> bool:
         """檢查文章是否已存在於資料庫中."""
         try:
             from database import db_manager
             from models import PTTArticle
-            from sqlalchemy import or_
+            from sqlalchemy import or_, and_
             
             with db_manager.get_session() as session:
                 # 使用 OR 條件而不是 UNION 來避免 JSON 字段問題
                 conditions = [PTTArticle.article_id == article_id]
                 if url:
                     conditions.append(PTTArticle.url == url)
+                
+                # 如果有發文時間，也檢查是否有相同發文時間的文章（避免重複爬取）
+                if publish_time:
+                    # 檢查是否有相同發文時間的文章（允許 1 分鐘的誤差）
+                    time_tolerance = timedelta(minutes=1)
+                    time_conditions = [
+                        and_(
+                            PTTArticle.publish_time >= publish_time - time_tolerance,
+                            PTTArticle.publish_time <= publish_time + time_tolerance
+                        )
+                    ]
+                    conditions.extend(time_conditions)
                 
                 existing_article = session.query(PTTArticle).filter(
                     or_(*conditions)
@@ -384,13 +396,15 @@ class PTTCrawler:
                     
                     # 先檢查文章是否已存在於資料庫
                     article_id = self._extract_article_id(article['url'])
-                    if article_id and await self._is_article_exists(article_id, article['url']):
-                        logger.info(f"Article {article_id} or URL {article['url']} already exists, skipping")
-                        continue
                     
-                    # 取得文章詳細內容
+                    # 先取得文章內容以獲取發文時間
                     article_data = await self._get_article_content(article['url'], article['push_count'])
                     if not article_data:
+                        continue
+                    
+                    # 使用發文時間進行重複檢查
+                    if article_id and await self._is_article_exists(article_id, article['url'], article_data.get('publish_time')):
+                        logger.info(f"Article {article_id} or similar publish time already exists, skipping")
                         continue
                     
                     # 合併數據
