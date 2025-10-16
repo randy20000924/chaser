@@ -16,9 +16,16 @@ export const metadata: Metadata = {
   title: "Chaser: chase your life!",
   description: "Chaser: Chase your life!",
   icons: {
-    icon: '../public/chaser.ico',
-    shortcut: '../public/chaser.ico',
-    apple: '../public/chaser.ico',
+    icon: [
+      { url: '/chaser-whitebg.png', media: '(prefers-color-scheme: dark)' },
+      { url: '/chaser-blackbg.png', media: '(prefers-color-scheme: light)' },
+      { url: '/chaser.ico', sizes: 'any' }
+    ],
+    shortcut: '/chaser.ico',
+    apple: [
+      { url: '/chaser-whitebg.png', media: '(prefers-color-scheme: dark)' },
+      { url: '/chaser-blackbg.png', media: '(prefers-color-scheme: light)' }
+    ],
   },
 };
 
