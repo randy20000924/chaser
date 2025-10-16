@@ -13,15 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chaser: chase your life!",
+  title: "Chaser: Chase your life!",
   description: "Chaser: Chase your life!",
   icons: {
     icon: [
       { url: '/chaser-whitebg.png', media: '(prefers-color-scheme: dark)' },
       { url: '/chaser-blackbg.png', media: '(prefers-color-scheme: light)' },
-      { url: '/chaser.ico', sizes: 'any' }
+      { url: '/chaser-blackbg.png', sizes: 'any' }
     ],
-    shortcut: '/chaser.ico',
+    shortcut: '/chaser-blackbg.png',
     apple: [
       { url: '/chaser-whitebg.png', media: '(prefers-color-scheme: dark)' },
       { url: '/chaser-blackbg.png', media: '(prefers-color-scheme: light)' }
