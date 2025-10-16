@@ -15,18 +15,18 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Chaser: Chase your life!",
   description: "Chaser: Chase your life!",
+  // icon arrays with explicit sizes and type, plus a shortcut fallback and favicon.ico fallback
   icons: {
     icon: [
-      { url: '/chaser-whitebg.png', media: '(prefers-color-scheme: dark)' },
-      { url: '/chaser-blackbg.png', media: '(prefers-color-scheme: light)' },
-      { url: '/chaser-blackbg.png', sizes: 'any' }
+      { url: '/chaser-blackbg.png', sizes: 'any', type: 'image/png' },
+      { url: '/chaser-whitebg.png', sizes: 'any', type: 'image/png' }
     ],
-    shortcut: '/chaser-blackbg.png',
+    shortcut: ['/favicon.ico', '/chaser-blackbg.png'], // shortcut favicon fallback(s)
     apple: [
-      { url: '/chaser-whitebg.png', media: '(prefers-color-scheme: dark)' },
-      { url: '/chaser-blackbg.png', media: '(prefers-color-scheme: light)' }
-    ],
-  },
+      { url: '/chaser-whitebg.png', sizes: '180x180', type: 'image/png' },
+      { url: '/chaser-blackbg.png', sizes: '180x180', type: 'image/png' }
+    ]
+  }
 };
 
 export default function RootLayout({
