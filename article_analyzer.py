@@ -17,13 +17,21 @@ class ArticleAnalyzer:
     async def _analyze_with_llm(self, content: str) -> Dict[str, Any]:
         """使用 LLM 分析文章內容."""
         try:
-            # 極簡化提示詞，最小化處理負擔
-            prompt = f"""你是一個專業的股票分析師，請分析以下股票文章並只返回JSON格式，不要其他文字：
+            # 專業化提示詞，增加分析深度
+            prompt = f"""你是一位資深的證券研究分析師，熟悉台灣與國際股市的新聞解讀與市場心理。忽略政治立場或網路俚語，只分析對股票市場的潛在影響，只用繁體中文回覆並以 JSON 格式輸出：
 
-{content[:200]}
+請從技術面、基本面、消息面三個角度分析以下股票文章，並只返回JSON格式，不要其他文字：
+
+{content[:300]}
 
 必須返回以下JSON格式：
-{{"recommended_stocks":["股票代碼"],"sentiment":"pos/neg/neu","reason":"分析原因","sectors":["產業類別"],"strategy":"投資策略","risk_level":"low/medium/high"}}"""
+{{"recommended_stocks":["股票代碼"],"sentiment":"pos/neg/neu","reason":"分析原因","sectors":["產業類別"],"strategy":"投資策略","risk_level":"low/medium/high"}}
+
+分析要求：
+- 情緒分析請考慮：市場恐慌程度、投資人信心、資金流向、外資動向
+- 風險等級請考慮：市場風險、流動性風險、政策風險、個股風險
+- 投資策略請包含：進場時機、停損點位、目標價位、持有期間
+- 產業類別請包含：主要產業、次產業、相關概念股、上下游供應鏈"""
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -33,45 +41,80 @@ class ArticleAnalyzer:
                         "prompt": prompt,
                         "stream": False,
                         "options": {
-                            "temperature": 0.3,
-                            "max_tokens": 100,   # 大幅減少輸出長度
-                            "num_ctx": 512,      # 大幅減少上下文長度
-                            "num_predict": 100,  # 大幅減少預測長度
-                            "num_thread": 1,     # 限制線程數
-                            "num_gpu": 0         # 禁用 GPU
+                            "temperature": 0.4,      # 稍微增加創造性
+                            "max_tokens": 200,       # 增加輸出長度以容納更詳細分析
+                            "num_ctx": 1024,         # 增加上下文長度
+                            "num_predict": 200,      # 增加預測長度
+                            "num_thread": 2,         # 增加線程數以提高處理速度
+                            "num_gpu": 0,            # 禁用 GPU
+                            "repeat_penalty": 1.1,   # 避免重複內容
+                            "top_p": 0.9,            # 增加多樣性
+                            "top_k": 40              # 限制詞彙選擇範圍
                         }
                     },
-                    timeout=aiohttp.ClientTimeout(total=120)  # 增加超時時間到 120 秒 (2分鐘)
+                    timeout=aiohttp.ClientTimeout(total=180)  # 增加超時時間到 180 秒 (3分鐘)
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
                         response_text = result.get("response", "")
                         
-                        # 嘗試解析JSON
+                        # 嘗試解析JSON，增加容錯機制
                         try:
-                            # 提取JSON部分
-                            json_start = response_text.find('{')
-                            json_end = response_text.rfind('}') + 1
+                            # 清理回應文字，移除可能的額外文字
+                            cleaned_response = response_text.strip()
+                            
+                            # 嘗試多種方式提取JSON
+                            json_candidates = []
+                            
+                            # 方法1: 尋找完整的JSON對象
+                            json_start = cleaned_response.find('{')
+                            json_end = cleaned_response.rfind('}') + 1
                             if json_start != -1 and json_end > json_start:
-                                json_str = response_text[json_start:json_end]
-                                analysis = json.loads(json_str)
-                                
-                                # 確保所有必要字段存在
-                                return {
-                                    "recommended_stocks": analysis.get("recommended_stocks", []),
-                                    "reason": analysis.get("reason", "技術分析"),
-                                    "sentiment": analysis.get("sentiment", "neutral"),
-                                    "sectors": analysis.get("sectors", []),
-                                    "strategy": analysis.get("strategy", "投資策略"),
-                                    "risk_level": analysis.get("risk_level", "medium")
-                                }
-                        except json.JSONDecodeError:
-                            logger.warning("Failed to parse LLM response as JSON")
+                                json_candidates.append(cleaned_response[json_start:json_end])
+                            
+                            # 方法2: 尋找多行JSON
+                            lines = cleaned_response.split('\n')
+                            for line in lines:
+                                line = line.strip()
+                                if line.startswith('{') and line.endswith('}'):
+                                    json_candidates.append(line)
+                            
+                            # 方法3: 尋找包含特定關鍵字的JSON
+                            for line in lines:
+                                if any(keyword in line for keyword in ['recommended_stocks', 'sentiment', 'reason']):
+                                    if '{' in line and '}' in line:
+                                        json_candidates.append(line)
+                            
+                            # 嘗試解析每個候選JSON
+                            for json_str in json_candidates:
+                                try:
+                                    analysis = json.loads(json_str)
+                                    
+                                    # 驗證必要字段
+                                    if isinstance(analysis, dict):
+                                        logger.info(f"Successfully parsed JSON: {json_str[:100]}...")
+                                        
+                                        # 確保所有必要字段存在並有合理值
+                                        return {
+                                            "recommended_stocks": analysis.get("recommended_stocks", []) if isinstance(analysis.get("recommended_stocks"), list) else [],
+                                            "reason": analysis.get("reason", "技術分析") if analysis.get("reason") else "技術分析",
+                                            "sentiment": analysis.get("sentiment", "neutral") if analysis.get("sentiment") in ["pos", "neg", "neu"] else "neutral",
+                                            "sectors": analysis.get("sectors", []) if isinstance(analysis.get("sectors"), list) else [],
+                                            "strategy": analysis.get("strategy", "投資策略") if analysis.get("strategy") else "投資策略",
+                                            "risk_level": analysis.get("risk_level", "medium") if analysis.get("risk_level") in ["low", "medium", "high"] else "medium"
+                                        }
+                                except json.JSONDecodeError:
+                                    continue
+                            
+                            logger.warning(f"Failed to parse any JSON from response: {response_text[:200]}...")
+                            
+                        except Exception as e:
+                            logger.error(f"Error processing LLM response: {e}")
                         
-                        # 如果JSON解析失敗，返回默認值
+                        # 如果所有JSON解析都失敗，返回默認值
                         return {
                             "recommended_stocks": [],
-                            "reason": "分析失敗",
+                            "reason": "分析失敗 - JSON解析錯誤",
                             "sentiment": "neutral",
                             "sectors": [],
                             "strategy": "未知",
@@ -82,10 +125,27 @@ class ArticleAnalyzer:
                         return self._get_default_analysis()
                         
         except asyncio.TimeoutError:
-            logger.error("LLM analysis timeout")
-            return self._get_default_analysis()
+            logger.error("LLM analysis timeout after 3 minutes")
+            return {
+                "recommended_stocks": [],
+                "reason": "分析超時 - 請稍後重試",
+                "sentiment": "neutral",
+                "sectors": [],
+                "strategy": "未知",
+                "risk_level": "medium"
+            }
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error during LLM analysis: {e}")
+            return {
+                "recommended_stocks": [],
+                "reason": "網路錯誤 - 無法連接分析服務",
+                "sentiment": "neutral",
+                "sectors": [],
+                "strategy": "未知",
+                "risk_level": "medium"
+            }
         except Exception as e:
-            logger.error(f"LLM analysis error: {e}")
+            logger.error(f"Unexpected error during LLM analysis: {e}")
             return self._get_default_analysis()
     
     def _get_default_analysis(self) -> Dict[str, Any]:
