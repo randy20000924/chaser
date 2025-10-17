@@ -10,8 +10,9 @@ class StockValidator:
     """股票代碼驗證器."""
     
     def __init__(self):
-        self.finmind_api_key = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNS0xMC0xMyAwMDo1Mjo1NSIsInVzZXJfaWQiOiJyYW5keTg5MDkyNCIsImlwIjoiMTIzLjE5My4yMTUuODYifQ._wLbRWaeo8pj4ykspm9yjtpywFI0fEJJH3tKqkFtRZU"
-        self.alpha_vantage_api_key = "XT229ILEX9F9SJA5"
+        import os
+        self.finmind_api_key = os.getenv("FINMIND_API_KEY", "")
+        self.alpha_vantage_api_key = os.getenv("ALPHA_VANTAGE_API_KEY", "")
         self.finmind_base_url = "https://api.finmindtrade.com/api/v4"
         self.alpha_vantage_base_url = "https://www.alphavantage.co/query"
         
