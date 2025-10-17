@@ -14,7 +14,6 @@ from loguru import logger
 from config import settings
 from models import PTTArticle
 from article_analyzer import analyzer
-from simple_analyzer import simple_analyzer
 from stock_validator import stock_validator
 
 class PTTCrawler:
