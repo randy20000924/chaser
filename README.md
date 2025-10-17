@@ -1,26 +1,27 @@
-# PTT股票版爬蟲系統
+# Chaser: PTT股票版爬蟲與分析系統
 
-一個功能完整的PTT股票版爬蟲系統，支援多作者追蹤、MCP整合、LLM分析和自動同步部署。
+一個功能完整的PTT股票版爬蟲與分析系統，支援多作者追蹤、LLM分析、股票推薦和Web前端展示。
 
 ## 功能特色
 
-- 🕷️ **智能爬蟲**: 處理PTT防爬機制和年齡限制
-- 👥 **多作者追蹤**: 支援追蹤多個指定作者的文章
+- 🕷️ **智能爬蟲**: 處理PTT防爬機制和年齡限制，支援多作者追蹤
 - 🗄️ **資料庫儲存**: 使用PostgreSQL儲存結構化資料
-- 🔍 **MCP整合**: 提供MCP Server供LLM查詢和分析
-- 🤖 **LLM分析**: 支援文章分類、情感分析、股票推薦等AI功能
+- 🤖 **LLM分析**: 整合Ollama進行文章分析、情感分析、股票推薦
 - ⚡ **異步處理**: 高效能的異步爬蟲架構
-- ⏰ **定時執行**: 支援每天台灣時區早上8點自動執行
-- 🛡️ **防爬機制**: 隨機UA、指數退避、Selenium後備、代理支援
-- 🔄 **自動同步**: 本地修改自動同步到VPS部署
-- 🌐 **VPS部署**: 支援Docker容器化部署
+- ⏰ **定時執行**: 支援每天自動執行爬蟲和分析
+- 🛡️ **防爬機制**: 隨機UA、指數退避、請求間隔控制
+- 🌐 **Web前端**: Next.js前端展示分析結果
+- 🔄 **VPS部署**: 支援PM2進程管理和Nginx反向代理
+- 📊 **股票驗證**: 整合FinMind和Alpha Vantage API驗證股票代碼
 
 ## 系統架構
 
 ```
-本地開發 → GitHub → VPS自動同步 → Docker部署
+本地開發 → GitHub → VPS部署 → PM2管理
     ↓
-PTT爬蟲 → 資料處理 → PostgreSQL → MCP Server → LLM Agent
+PTT爬蟲 → LLM分析 → PostgreSQL → Web前端展示
+    ↓
+Ollama LLM → 股票驗證 → 分析結果 → Next.js前端
 ```
 
 ## 快速開始
@@ -53,35 +54,35 @@ python -c "from database import db_manager; db_manager.create_tables()"
 ### 4. 執行模式
 
 ```bash
-# 定時執行（每天台灣時區早上8點）
-python main.py --mode scheduled
-
-# 執行一次爬蟲（測試用）
+# 執行一次爬蟲和分析
 python main.py --mode once
 
-# 常駐爬蟲（每5分鐘檢查）
-python main.py --mode crawler
+# 執行手動爬蟲
+python manual_crawler.py
 
-# 執行MCP服務器
+# 執行HTTP API服務器
 python main.py --mode mcp
 
-# 同時執行爬蟲和MCP
-python main.py --mode both
+# 執行定時爬蟲
+python auto_crawler.py
 ```
 
-### 5. 定時執行設定
+### 5. VPS部署
 
-系統支援每天台灣時區早上8點自動執行爬蟲：
+使用PM2管理進程：
 
 ```bash
-# 啟動定時執行
-python main.py --mode scheduled
+# 啟動所有服務
+pm2 start ecosystem.config.js
 
-# 背景執行
-nohup python main.py --mode scheduled &
+# 查看狀態
+pm2 status
 
 # 查看日誌
-tail -f logs/crawler.log
+pm2 logs
+
+# 重啟服務
+pm2 restart all
 ```
 
 ## 使用方式
@@ -97,15 +98,17 @@ async def crawl_articles():
         print(f"找到 {len(articles)} 篇文章")
 ```
 
-### MCP查詢
+### HTTP API
 
-MCP Server提供以下工具：
+後端提供以下API端點：
 
-- `search_articles`: 搜尋文章（按作者、股票代碼、時間）
-- `get_article_content`: 取得文章完整內容
-- `analyze_author_activity`: 分析作者活動模式
-- `get_stock_mentions`: 取得股票提及統計
-- `classify_article`: 分類文章內容
+- `GET /health` - 健康檢查
+- `GET /articles` - 取得所有文章
+- `GET /articles/{article_id}` - 取得特定文章
+- `GET /articles/{article_id}/analysis` - 取得文章分析結果
+- `GET /authors` - 取得所有作者
+- `GET /authors/{author_name}/articles` - 取得特定作者的文章
+- `GET /stats` - 取得統計資料
 
 ### 資料庫查詢
 
@@ -147,49 +150,43 @@ with db_manager.get_session() as session:
 
 ```
 chaser/
-├── main.py                    # 主應用程式
-├── config.py                  # 配置管理
-├── models.py                  # 資料庫模型
-├── database.py                # 資料庫連線
-├── ptt_crawler.py             # PTT爬蟲模組
-├── data_processor.py          # 資料處理和LLM整合
-├── simple_mcp_server.py       # MCP Server
-├── article_analyzer.py        # 文章分析模組
-├── article_selector.py        # 文章選擇器
-├── quick_query.py             # 快速查詢工具
-├── view_output.py             # 輸出查看工具
-├── sync.sh                    # 本地同步腳本
-├── quick_sync.sh              # 快速同步腳本
-├── vps_sync.sh                # VPS同步腳本
-├── setup_vps_auto_sync.sh     # VPS自動同步設定
-├── SYNC_GUIDE.md              # 同步使用指南
-├── QUICKSTART.md              # 快速開始指南
-├── requirements.txt           # 依賴清單
-├── docker-compose.yml         # Docker Compose配置
-├── Dockerfile                 # Docker配置
-└── README.md                  # 說明文檔
+├── 核心功能/
+│   ├── main.py                    # 主應用程式
+│   ├── ptt_crawler.py             # PTT爬蟲模組
+│   ├── article_analyzer.py        # LLM文章分析器
+│   ├── stock_validator.py         # 股票代碼驗證器
+│   └── crawl_orchestrator.py      # 爬蟲協調器
+├── 服務/
+│   ├── http_mcp_server.py         # HTTP API服務器
+│   ├── auto_crawler.py            # 自動定時爬蟲
+│   └── manual_crawler.py          # 手動爬蟲
+├── 配置/
+│   ├── config.py                  # 配置管理
+│   ├── models.py                  # 資料庫模型
+│   ├── database.py                # 資料庫連線
+│   └── ecosystem.config.js        # PM2配置
+├── 前端/
+│   └── frontend/                  # Next.js前端應用
+├── 工具/
+│   ├── clear_database.py          # 資料庫清理工具
+│   └── monitor.sh                 # 系統監控腳本
+├── requirements.txt               # Python依賴清單
+└── README.md                      # 說明文檔
 ```
 
 ### 添加新功能
 
-1. **新增作者追蹤**: 修改 `config.py` 中的 `target_authors`
-2. **自定義分類**: 修改 `data_processor.py` 中的 `LLMClassifier`
-3. **新增查詢工具**: 修改 `simple_mcp_server.py` 中的工具列表
-4. **新增分析功能**: 修改 `article_analyzer.py` 中的分析方法
+1. **新增作者追蹤**: 修改 `config.py` 中的 `TARGET_AUTHORS`
+2. **自定義分析**: 修改 `article_analyzer.py` 中的LLM提示詞
+3. **新增API端點**: 修改 `http_mcp_server.py` 中的路由
+4. **新增前端頁面**: 修改 `frontend/src/app/` 中的頁面組件
 
-### 自動同步部署
+### 部署流程
 
-系統支援本地開發自動同步到VPS：
-
-```bash
-# 本地修改後同步
-./sync.sh
-
-# 快速同步（緊急更新）
-./quick_sync.sh
-```
-
-VPS會每2分鐘自動檢查GitHub更新並同步。
+1. **本地開發**: 在本地進行代碼修改和測試
+2. **推送到GitHub**: `git add . && git commit -m "message" && git push`
+3. **VPS同步**: 在VPS上執行 `git pull` 更新代碼
+4. **重啟服務**: `pm2 restart all` 重啟所有服務
 
 ## 故障排除
 
@@ -202,22 +199,31 @@ VPS會每2分鐘自動檢查GitHub更新並同步。
 2. **爬蟲被阻擋**
    - 增加請求間隔時間
    - 檢查User-Agent設定
-   - 考慮使用代理伺服器
+   - 調整 `REQUEST_MIN_DELAY_MS` 和 `REQUEST_MAX_DELAY_MS`
 
-3. **MCP Server無法啟動**
-   - 檢查端口是否被占用
-   - 確認MCP依賴已正確安裝
+3. **LLM分析失敗**
+   - 檢查Ollama服務是否運行
+   - 確認模型已下載：`ollama list`
+   - 檢查分析超時設定
+
+4. **前端無法顯示資料**
+   - 檢查 `NEXT_PUBLIC_BACKEND_URL` 環境變數
+   - 確認後端API服務正常運行
+   - 檢查CORS設定
 
 ### 日誌查看
 
-日誌檔案位置：`logs/crawler.log`
-
 ```bash
-# 查看即時日誌
-tail -f logs/crawler.log
+# 查看PM2日誌
+pm2 logs
 
-# 查看錯誤日誌
-grep ERROR logs/crawler.log
+# 查看特定服務日誌
+pm2 logs chaser-backend
+pm2 logs chaser-frontend
+pm2 logs chaser-scheduler
+
+# 查看系統監控
+./monitor.sh
 ```
 
 ## 授權
@@ -230,11 +236,18 @@ MIT License
 
 ## 更新日誌
 
+### v2.0.0
+- 🎉 **重大架構重構**: 從MCP架構轉換為HTTP API + Web前端架構
+- 🤖 **LLM分析整合**: 整合Ollama進行文章分析、情感分析、股票推薦
+- 🌐 **Web前端**: 新增Next.js前端展示分析結果
+- 📊 **股票驗證**: 整合FinMind和Alpha Vantage API驗證股票代碼
+- ⚡ **性能優化**: 爬蟲時進行LLM分析，避免前端等待
+- 🔄 **VPS部署**: 支援PM2進程管理和Nginx反向代理
+- 🧹 **代碼清理**: 移除未使用的檔案和功能
+
 ### v1.2.0
 - 新增自動同步部署功能
 - 新增文章分析模組（股票推薦、情感分析）
-- 新增互動式文章選擇器
-- 新增快速查詢工具
 - 優化專案結構，移除不必要檔案
 - 新增VPS部署支援
 
