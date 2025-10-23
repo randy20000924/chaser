@@ -153,8 +153,18 @@ async def main():
         default="both",
         help="運行模式"
     )
+    parser.add_argument(
+        "--author",
+        type=str,
+        help="指定要爬取的作者名稱"
+    )
     
     args = parser.parse_args()
+    
+    # 如果指定了作者，設置動態作者
+    if args.author:
+        settings.DYNAMIC_AUTHOR = args.author
+        logger.info(f"Dynamic author set to: {args.author}")
     
     app = PTTStockCrawlerApp()
     await app.run(args.mode)

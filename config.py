@@ -2,7 +2,7 @@
 
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
-from typing import List
+from typing import List, Optional
 import os
 
 class Settings(BaseSettings):
@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     # PTT Configuration
     PTT_BASE_URL: str = "https://www.ptt.cc"
     PTT_STOCK_BOARD: str = "Stock"
-    TARGET_AUTHORS: List[str] = ["mrp"]
+    TARGET_AUTHORS: List[str] = ["homoho"]  # 預設追蹤的作者
+    DYNAMIC_AUTHOR: Optional[str] = None  # 動態指定的作者
     USER_AGENTS: List[str] = [
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
@@ -27,7 +28,7 @@ class Settings(BaseSettings):
     crawl_interval: int = 300
     max_articles_per_crawl: int = 100
     enable_selenium: bool = False
-    http_proxy_url: str | None = None
+    http_proxy_url: Optional[str] = None
     request_min_delay_ms: int = 800
     request_max_delay_ms: int = 2500
     backoff_max_sleep_seconds: int = 20

@@ -1,4 +1,4 @@
-"""文章分析器 - 使用較輕量的 Qwen2:0.5b 模型."""
+"""文章分析器 - 根據系統硬體自動選擇適合的 Qwen 模型."""
 
 import json
 import asyncio
@@ -6,13 +6,17 @@ import aiohttp
 from typing import Dict, Any, Optional
 from loguru import logger
 from models import PTTArticle
+from system_detector import system_detector
 
 class ArticleAnalyzer:
     """文章分析器類別."""
     
     def __init__(self):
         self.ollama_url = "http://localhost:11434"
-        self.model_name = "Qwen2.5:0.5b"  # 使用 Qwen2.5 0.5b 模型
+        # 根據系統硬體自動選擇模型
+        system_info = system_detector.detect_system()
+        self.model_name = system_info.get("recommended_model", "Qwen2.5:0.5b")
+        logger.info(f"Selected model: {self.model_name}")
     
     async def _analyze_with_llm(self, content: str) -> Dict[str, Any]:
         """使用 LLM 分析文章內容."""

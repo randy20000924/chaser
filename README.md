@@ -1,6 +1,8 @@
 # Chaser: PTT股票版爬蟲與分析系統
 
-一個功能完整的PTT股票版爬蟲與分析系統，支援多作者追蹤、LLM分析、股票推薦和Web前端展示。
+一個功能完整的PTT股票版爬蟲與分析系統，支援多作者追蹤、LLM分析、股票推薦、Web前端展示和完整的MCP (Model Context Protocol) 協議支援。
+
+> 🚀 **本專案使用 [Cursor](https://cursor.sh/) AI 程式碼編輯器協助製作** - 透過 AI 助手加速開發流程，實現智能程式碼生成和自動化開發。
 
 ## 功能特色
 
@@ -13,6 +15,9 @@
 - 🌐 **Web前端**: Next.js前端展示分析結果
 - 🔄 **VPS部署**: 支援PM2進程管理和Nginx反向代理
 - 📊 **股票驗證**: 整合FinMind和Alpha Vantage API驗證股票代碼
+- 🧠 **MCP協議**: 完整的Model Context Protocol支援，可與AI助手整合
+- 🔧 **系統檢測**: 自動檢測硬體配置並推薦適合的Qwen模型
+- 🎯 **動態爬蟲**: 支援指定單一作者進行爬蟲分析
 
 ## 系統架構
 
@@ -22,6 +27,16 @@
 PTT爬蟲 → LLM分析 → PostgreSQL → Web前端展示
     ↓
 Ollama LLM → 股票驗證 → 分析結果 → Next.js前端
+    ↓
+MCP協議 → AI助手整合 → 動態分析 → 智能推薦
+```
+
+### MCP (Model Context Protocol) 整合
+
+```
+Cursor AI助手 → MCP服務器 → 爬蟲分析 → 智能推薦
+    ↓
+系統硬體檢測 → Qwen模型選擇 → 動態作者爬蟲 → 投資分析
 ```
 
 ## 快速開始
@@ -65,6 +80,12 @@ python main.py --mode mcp
 
 # 執行定時爬蟲
 python auto_crawler.py
+
+# 動態指定作者爬蟲
+python main.py --mode once --author "homoho"
+
+# 啟動MCP服務器（與AI助手整合）
+python mcp_server.py
 ```
 
 ### 5. VPS部署
@@ -87,6 +108,21 @@ pm2 restart all
 
 ## 使用方式
 
+### MCP 協議整合（推薦）
+
+在 Cursor 中直接與 AI 助手對話：
+
+```
+用戶：「幫我搜尋 homoho 作者的文章並分析他近3個月推薦的標的和推薦買的行業類別，並說明他分析的市場動向」
+
+AI 助手會自動：
+1. 調用 MCP 服務器檢查作者資料
+2. 如果沒有資料，觸發爬蟲功能
+3. 分析作者的推薦標的
+4. 統計推薦的行業類別
+5. 提供市場動向分析
+```
+
 ### 基本爬蟲
 
 ```python
@@ -96,6 +132,16 @@ async def crawl_articles():
     async with PTTCrawler() as crawler:
         articles = await crawler.crawl_all_authors()
         print(f"找到 {len(articles)} 篇文章")
+```
+
+### 系統硬體檢測
+
+```python
+from system_detector import system_detector
+
+# 檢測系統硬體並推薦模型
+system_info = system_detector.detect_system()
+print(f"推薦模型: {system_info['recommended_model']}")
 ```
 
 ### HTTP API
@@ -155,9 +201,11 @@ chaser/
 │   ├── ptt_crawler.py             # PTT爬蟲模組
 │   ├── article_analyzer.py        # LLM文章分析器
 │   ├── stock_validator.py         # 股票代碼驗證器
-│   └── crawl_orchestrator.py      # 爬蟲協調器
+│   ├── crawl_orchestrator.py      # 爬蟲協調器
+│   └── system_detector.py         # 系統硬體檢測器
 ├── 服務/
 │   ├── http_mcp_server.py         # HTTP API服務器
+│   ├── mcp_server.py              # MCP協議服務器
 │   ├── auto_crawler.py            # 自動定時爬蟲
 │   └── manual_crawler.py          # 手動爬蟲
 ├── 配置/
@@ -235,6 +283,14 @@ MIT License
 歡迎提交Issue和Pull Request！
 
 ## 更新日誌
+
+### v3.0.0 (最新)
+- 🧠 **完整MCP協議支援**: 實現Model Context Protocol，可與AI助手整合
+- 🔧 **系統硬體檢測**: 自動檢測CPU、GPU、記憶體、硬碟並推薦適合的Qwen模型
+- 🎯 **動態作者爬蟲**: 支援指定單一作者進行爬蟲，避免一次爬太多人
+- 🤖 **AI助手整合**: 在Cursor中可直接與AI助手對話完成分析
+- 📊 **智能分析**: 自動分析推薦標的、行業類別、市場動向
+- 🚀 **Cursor AI開發**: 使用Cursor AI程式碼編輯器協助製作
 
 ### v2.0.0
 - 從MCP架構轉換為HTTP API + Web前端架構

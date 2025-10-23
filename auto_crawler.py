@@ -1,4 +1,4 @@
-"""自動爬蟲腳本 - 每天下午3點執行."""
+"""自動爬蟲腳本 - 每天下午3點執行，追蹤指定作者名單."""
 
 import asyncio
 import schedule
@@ -12,12 +12,16 @@ from ptt_crawler import PTTCrawler
 from crawl_orchestrator import CrawlOrchestrator
 
 async def daily_crawl():
-    """每天下午3點執行的爬蟲任務."""
+    """每天下午3點執行的爬蟲任務 - 追蹤配置的作者名單."""
     logger.info(f"Starting daily crawl at {datetime.now()}")
     
     try:
         # 初始化資料庫
         db_manager.create_tables()
+        
+        # 使用配置的作者名單
+        target_authors = settings.TARGET_AUTHORS
+        logger.info(f"Tracking authors: {target_authors}")
         
         # 執行爬蟲
         orchestrator = CrawlOrchestrator()

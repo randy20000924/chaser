@@ -36,3 +36,10 @@ pytz==2025.2
 ollama==0.4.2
 fastapi
 uvicorn
+
+# MCP (Model Context Protocol)
+mcp==1.16.0
+
+# System Detection
+psutil==6.1.0
+GPUtil==1.4.0
