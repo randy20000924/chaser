@@ -163,60 +163,60 @@ class SystemDetector:
             
             # Qwen 模型推薦邏輯
             if total_vram >= 80 and total_memory >= 64 and total_disk >= 80:
-                return "Qwen2.5-14B"
+                return "Qwen2.5:14B"
             elif total_vram >= 40 and total_memory >= 48 and total_disk >= 60:
-                return "Qwen2.5-8B"
+                return "Qwen2.5:8B"
             elif total_vram >= 24 and total_memory >= 24 and total_disk >= 40:
-                return "Qwen2.5-4B"
+                return "Qwen2.5:4B"
             elif total_vram >= 12 and total_memory >= 16 and total_disk >= 30:
-                return "Qwen2.5-1.5B"
+                return "Qwen2.5:1.5B"
             elif total_vram >= 8 and total_memory >= 8 and total_disk >= 20:
-                return "Qwen2.5-0.5B"
+                return "Qwen2.5:0.5B"
             elif total_memory >= 32 and total_disk >= 40:  # 無 GPU 但記憶體充足
-                return "Qwen2.5-4B"
+                return "Qwen2.5:4B"
             elif total_memory >= 16 and total_disk >= 30:
-                return "Qwen2.5-1.5B"
+                return "Qwen2.5:1.5B"
             elif total_memory >= 8 and total_disk >= 20:
-                return "Qwen2.5-0.5B"
+                return "Qwen2.5:0.5B"
             else:
-                return "Qwen2.5-0.5B"  # 預設最小模型
+                return "Qwen2.5:0.5B"  # 預設最小模型
                 
         except Exception as e:
             logger.error(f"Error recommending model: {e}")
-            return "Qwen2.5-0.5B"
+            return "Qwen2.5:0.5B"
     
     def get_model_requirements(self, model_name: str) -> Dict[str, Any]:
         """獲取指定模型的硬體需求."""
         requirements = {
-            "Qwen2.5-0.5B": {
+            "Qwen2.5:0.5B": {
                 "min_memory_gb": 4,
                 "min_disk_gb": 2,
                 "min_vram_gb": 2,
                 "recommended_memory_gb": 8,
                 "recommended_vram_gb": 4
             },
-            "Qwen2.5-1.5B": {
+            "Qwen2.5:1.5B": {
                 "min_memory_gb": 8,
                 "min_disk_gb": 4,
                 "min_vram_gb": 4,
                 "recommended_memory_gb": 16,
                 "recommended_vram_gb": 8
             },
-            "Qwen2.5-4B": {
+            "Qwen2.5:4B": {
                 "min_memory_gb": 16,
                 "min_disk_gb": 8,
                 "min_vram_gb": 8,
                 "recommended_memory_gb": 24,
                 "recommended_vram_gb": 16
             },
-            "Qwen2.5-8B": {
+            "Qwen2.5:8B": {
                 "min_memory_gb": 32,
                 "min_disk_gb": 16,
                 "min_vram_gb": 16,
                 "recommended_memory_gb": 48,
                 "recommended_vram_gb": 24
             },
-            "Qwen2.5-14B": {
+            "Qwen2.5:14B": {
                 "min_memory_gb": 48,
                 "min_disk_gb": 28,
                 "min_vram_gb": 24,
@@ -225,7 +225,7 @@ class SystemDetector:
             }
         }
         
-        return requirements.get(model_name, requirements["Qwen2.5-0.5B"])
+        return requirements.get(model_name, requirements["Qwen2.5:0.5B"])
 
 # 創建全局實例
 system_detector = SystemDetector()
