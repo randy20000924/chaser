@@ -260,7 +260,7 @@ export default function Home() {
                 src="/chaser-logo-nav.png" 
                 alt="Chaser Logo" 
                 className="h-8 w-auto"
-              />
+        />
               <h1 className="ml-2 text-xl font-semibold text-black"></h1>
             </div>
             <div className="text-sm text-gray-500">
@@ -290,7 +290,7 @@ export default function Home() {
               onClick={searchAuthor}
               disabled={loading || crawling}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-            >
+          >
               <Search className="h-4 w-4" />
               {crawling ? '爬蟲中...' : loading ? '搜尋中...' : '搜尋'}
             </button>
@@ -375,8 +375,8 @@ export default function Home() {
                     <div className="flex gap-2">
                       <a
                         href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+          target="_blank"
+          rel="noopener noreferrer"
                         className="p-2 text-gray-400 hover:text-gray-600"
                       >
                         <ExternalLink className="h-4 w-4" />
@@ -430,13 +430,13 @@ export default function Home() {
                 <div className="md:col-span-2">
                   <a
                     href={analysis.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+          target="_blank"
+          rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
                   >
                     <ExternalLink className="h-4 w-4" />
                     查看原文
-                  </a>
+        </a>
                 </div>
               </div>
             </div>

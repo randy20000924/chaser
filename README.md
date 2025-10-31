@@ -23,23 +23,9 @@
 
 ## 系統架構
 
-```
-本地開發 → GitHub → VPS部署 → PM2管理
-    ↓
-PTT爬蟲 → LLM分析 → PostgreSQL → Web前端展示
-    ↓
-Ollama LLM → 股票驗證 → 分析結果 → Next.js前端
-    ↓
-MCP協議 → AI助手整合 → 動態分析 → 智能推薦
-```
+![系統架構圖](docs/structure.png)
 
-### MCP (Model Context Protocol) 整合
-
-```
-Cursor AI助手 → MCP服務器 → 爬蟲分析 → 智能推薦
-    ↓
-系統硬體檢測 → Qwen模型選擇 → 動態作者爬蟲 → 投資分析
-```
+以上架構圖整合了本地開發→部署→服務運行的流程，以及 PTT 爬蟲、LLM 分析、資料庫與前端、Ollama/MCP 的互動關係。
 
 ## 快速開始
 
