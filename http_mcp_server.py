@@ -306,7 +306,7 @@ async def get_stats():
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/crawl/author/{author_name}")
+@app.post("/crawl/author/{author_name}")
 async def crawl_author(author_name: str):
     """爬取指定作者的文章."""
     try:
@@ -325,7 +325,7 @@ async def crawl_author(author_name: str):
         logger.error(f"Error crawling author {author_name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/crawl/status")
+@app.get("/crawl/status")
 async def get_crawl_status():
     """查詢爬蟲狀態."""
     try:

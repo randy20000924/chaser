@@ -215,6 +215,23 @@ class PTTCrawler:
             logger.error(f"Error extracting and validating stocks: {e}")
             return []
     
+    def _extract_author_from_article(self, soup: BeautifulSoup) -> Optional[str]:
+        """從文章HTML中提取作者名稱."""
+        try:
+            # 查找作者信息（通常在 article-meta-tag 中）
+            author_elements = soup.find_all('span', class_='article-meta-value')
+            # 通常第一個是作者名稱（格式：作者名稱 (暱稱)）
+            if author_elements:
+                author_text = author_elements[0].get_text().strip()
+                # 提取作者名稱（去掉括號內的暱稱）
+                author_match = re.match(r'^([^\s\(]+)', author_text)
+                if author_match:
+                    return author_match.group(1).strip()
+            return None
+        except Exception as e:
+            logger.warning(f"Error extracting author from article: {e}")
+            return None
+
     async def _get_article_content(self, article_url: str, push_count: int = 0) -> Optional[Dict]:
         """取得文章詳細內容並進行 LLM 分析."""
         html = await self._get_page(article_url)
@@ -224,6 +241,9 @@ class PTTCrawler:
         soup = BeautifulSoup(html, 'html.parser')
 
         try:
+            # 提取實際的作者名稱
+            actual_author = self._extract_author_from_article(soup)
+            
             # 取得文章內容
             main_content = soup.find('div', id='main-content')
             if not main_content:
@@ -274,7 +294,7 @@ class PTTCrawler:
                 return {
                     'article_id': article_id,
                     'title': '',  # 標題會在後續處理中設置
-                    'author': '',  # 作者會在後續處理中設置
+                    'author': actual_author or '',  # 使用提取的實際作者名稱
                     'url': article_url,
                     'content': content,
                     'publish_time': publish_time,
@@ -290,7 +310,7 @@ class PTTCrawler:
                 return {
                     'article_id': article_id,
                     'title': '',  # 標題會在後續處理中設置
-                    'author': '',  # 作者會在後續處理中設置
+                    'author': actual_author or '',  # 使用提取的實際作者名稱
                     'url': article_url,
                     'content': content,
                     'publish_time': publish_time,
@@ -396,20 +416,31 @@ class PTTCrawler:
                     # 先檢查文章是否已存在於資料庫
                     article_id = self._extract_article_id(article['url'])
                     
-                    # 先取得文章內容以獲取發文時間
+                    # 先取得文章內容以獲取發文時間和實際作者名稱
                     article_data = await self._get_article_content(article['url'], article['push_count'])
                     if not article_data:
                         continue
+                    
+                    # 驗證作者名稱是否精確匹配（大小寫敏感）
+                    actual_author = article_data.get('author', '').strip()
+                    if actual_author and actual_author != author:
+                        logger.info(f"Article author '{actual_author}' does not match search author '{author}', skipping")
+                        continue
+                    
+                    # 如果無法提取作者名稱，使用搜索的作者名稱（可能是搜索結果中的誤報）
+                    if not actual_author:
+                        logger.warning(f"Could not extract author from article, using search author '{author}'")
+                        actual_author = author
                     
                     # 使用發文時間進行重複檢查
                     if article_id and await self._is_article_exists(article_id, article['url'], article_data.get('publish_time')):
                         logger.info(f"Article {article_id} or similar publish time already exists, skipping")
                         continue
                     
-                    # 合併數據
+                    # 合併數據（使用實際提取的作者名稱）
                     article_data.update({
                         'title': article['title'],
-                        'author': author,
+                        'author': actual_author,
                         'push_count': article['push_count']
                     })
                     
