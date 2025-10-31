@@ -177,13 +177,14 @@ class SystemDetector:
             elif total_memory >= 16 and total_disk >= 30:
                 return "Qwen2.5:1.5B"
             elif total_memory >= 8 and total_disk >= 20:
-                return "Qwen2.5:0.5B"
+                return "qwen2.5:0.5b-instruct"
             else:
-                return "Qwen2.5:0.5B"  # 預設最小模型
+                # 超低配預設：使用 instruct 變體（更省記憶體）
+                return "qwen2.5:0.5b-instruct"
                 
         except Exception as e:
             logger.error(f"Error recommending model: {e}")
-            return "Qwen2.5:0.5B"
+            return "qwen2.5:0.5b-instruct"
     
     def get_model_requirements(self, model_name: str) -> Dict[str, Any]:
         """獲取指定模型的硬體需求."""
