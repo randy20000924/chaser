@@ -46,13 +46,11 @@ export default function Home() {
   const fetchAuthors = async () => {
     try {
       const url = `${API_BASE}/authors`;
-      console.log('Fetching authors from:', url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       const data = await response.json();
-      console.log('Authors response:', data);
       
       // 為每個作者獲取文章數量
       const authorsWithCounts = await Promise.all(

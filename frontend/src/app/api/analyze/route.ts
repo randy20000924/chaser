@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Article ID is required' }, { status: 400 });
     }
 
-    console.log(`Fetching analysis for article: ${articleId}`);
     
     // 直接從後端 API 獲取分析結果
     const response = await fetch(`${BACKEND_URL}/articles/${articleId}/analysis`);
@@ -24,7 +23,6 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('Analysis data received:', data);
     
     // 確保返回的數據格式符合前端期望
     const formattedData = {
