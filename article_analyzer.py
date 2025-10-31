@@ -6,6 +6,7 @@ import aiohttp
 from typing import Dict, Any, Optional
 from loguru import logger
 from models import PTTArticle
+import os
 from system_detector import system_detector
 
 class ArticleAnalyzer:
@@ -13,9 +14,14 @@ class ArticleAnalyzer:
     
     def __init__(self):
         self.ollama_url = "http://localhost:11434"
-        # 根據系統硬體自動選擇模型
-        system_info = system_detector.detect_system()
-        self.model_name = system_info.get("recommended_model", "Qwen2.5:0.5b")
+        # 允許以環境變數覆寫，預設採用更省記憶體的 instruct 變體
+        env_model = os.getenv("OLLAMA_MODEL")
+        if env_model:
+            self.model_name = env_model
+        else:
+            # 根據系統硬體自動選擇模型（超低記憶體優先）
+            system_info = system_detector.detect_system()
+            self.model_name = system_info.get("recommended_model", "qwen2.5:0.5b-instruct")
         logger.info(f"Selected model: {self.model_name}")
     
     async def _analyze_with_llm(self, content: str) -> Dict[str, Any]:
@@ -45,15 +51,16 @@ class ArticleAnalyzer:
                         "prompt": prompt,
                         "stream": False,
                         "options": {
-                            "temperature": 0.4,      # 稍微增加創造性
-                            "max_tokens": 200,       # 增加輸出長度以容納更詳細分析
-                            "num_ctx": 1024,         # 增加上下文長度
-                            "num_predict": 200,      # 增加預測長度
-                            "num_thread": 2,         # 增加線程數以提高處理速度
-                            "num_gpu": 0,            # 禁用 GPU
-                            "repeat_penalty": 1.1,   # 避免重複內容
-                            "top_p": 0.9,            # 增加多樣性
-                            "top_k": 40              # 限制詞彙選擇範圍
+                            # 低記憶體配置（~1GB）：降低上下文、單執行緒、保守取樣
+                            "temperature": 0.4,
+                            "max_tokens": 180,
+                            "num_ctx": int(os.getenv("OLLAMA_NUM_CTX", "512")),
+                            "num_predict": 180,
+                            "num_thread": int(os.getenv("OLLAMA_NUM_THREAD", "1")),
+                            "num_gpu": 0,
+                            "repeat_penalty": 1.1,
+                            "top_p": 0.9,
+                            "top_k": 40
                         }
                     },
                     timeout=aiohttp.ClientTimeout(total=180)  # 增加超時時間到 180 秒 (3分鐘)
