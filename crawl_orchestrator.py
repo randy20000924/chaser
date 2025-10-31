@@ -131,6 +131,60 @@ class CrawlOrchestrator:
             logger.info(f"Saved {saved_count} articles, analyzed {analyzed_count} articles")
             return saved_count, analyzed_count
     
+    async def crawl_single_author(self, author: str) -> Dict[str, Any]:
+        """爬取單一作者的文章."""
+        logger.info(f"Starting crawl for single author: {author}")
+        start_time = datetime.now()
+        
+        articles_found = 0
+        articles_saved = 0
+        articles_analyzed = 0
+        errors = []
+        
+        try:
+            async with self.crawler as crawler_instance:
+                # 爬取單一作者的文章
+                crawled_articles = await crawler_instance.crawl_author_articles(author)
+                articles_found = len(crawled_articles)
+                logger.info(f"Found {articles_found} articles for author {author}.")
+                
+                # 保存文章到資料庫，包含分析結果
+                saved_count, analyzed_count = await self._save_articles_with_analysis(crawled_articles)
+                articles_saved = saved_count
+                articles_analyzed = analyzed_count
+                
+        except Exception as e:
+            logger.error(f"Crawl for author {author} failed: {e}")
+            errors.append(str(e))
+        
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        log_entry = {
+            "crawl_time": start_time.isoformat(),
+            "target_authors": [author],
+            "articles_found": articles_found,
+            "articles_saved": articles_saved,
+            "articles_analyzed": articles_analyzed,
+            "errors": errors,
+            "duration_seconds": int(duration),
+            "status": "error" if errors else "success"
+        }
+        
+        with db_manager.get_session() as session:
+            session.add(CrawlLog(**log_entry))
+            session.commit()
+        
+        logger.info(f"Crawl for author {author} completed: Found {articles_found}, Saved {articles_saved}, Analyzed {articles_analyzed}, Duration: {duration:.2f}s")
+        return {
+            "status": log_entry["status"], 
+            "author": author,
+            "articles_found": articles_found, 
+            "articles_saved": articles_saved,
+            "articles_analyzed": articles_analyzed,
+            "duration_seconds": int(duration)
+        }
+    
     async def process_unprocessed_articles(self) -> Dict[str, Any]:
         """處理資料庫中未經 LLM 分析的文章."""
         logger.info("Processing unprocessed articles...")

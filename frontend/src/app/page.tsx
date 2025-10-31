@@ -34,6 +34,8 @@ export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [crawling, setCrawling] = useState(false);
+  const [crawlStatus, setCrawlStatus] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
   // 載入所有作者列表
@@ -79,21 +81,131 @@ export default function Home() {
     }
   };
 
+  const checkCrawlStatus = async (): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/crawl/status`);
+      if (response.ok) {
+        const status = await response.json();
+        return status.is_running || false;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking crawl status:', error);
+      return false;
+    }
+  };
+
+  const triggerCrawl = async (author: string): Promise<boolean> => {
+    setCrawling(true);
+    setCrawlStatus('正在啟動爬蟲...');
+    
+    try {
+      // 觸發爬蟲
+      const response = await fetch(`${API_BASE}/crawl/author/${encodeURIComponent(author)}`, {
+        method: 'POST',
+      });
+
+      if (response.status === 409) {
+        // 爬蟲正在運行中，輪詢狀態
+        setCrawlStatus('爬蟲正在運行中，等待完成...');
+        
+        // 輪詢直到爬蟲完成
+        const pollInterval = setInterval(async () => {
+          const isRunning = await checkCrawlStatus();
+          if (!isRunning) {
+            clearInterval(pollInterval);
+            setCrawling(false);
+            setCrawlStatus('');
+            // 重新查詢文章
+            await searchAuthorInternal(author);
+          }
+        }, 2000); // 每2秒檢查一次
+
+        // 設置超時（最多等待5分鐘）
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          setCrawling(false);
+          setCrawlStatus('');
+        }, 300000);
+        
+        return false;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      setCrawlStatus('爬蟲完成！');
+      
+      // 等待一下讓資料寫入資料庫
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return true;
+    } catch (error) {
+      console.error('Error triggering crawl:', error);
+      setCrawlStatus(`爬蟲失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
+      return false;
+    } finally {
+      setCrawling(false);
+      setTimeout(() => setCrawlStatus(''), 3000); // 3秒後清除狀態訊息
+    }
+  };
+
+  const searchAuthorInternal = async (author: string) => {
+    try {
+      // 後端正確路由：/api/authors/{author_name}/articles
+      const response = await fetch(`${API_BASE}/authors/${encodeURIComponent(author)}/articles`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          // 找不到作者，返回空結果
+          return { articles: [], found: false };
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return { articles: data.articles || [], found: data.articles && data.articles.length > 0 };
+    } catch (error) {
+      console.error('Error searching author:', error);
+      return { articles: [], found: false };
+    }
+  };
+
   const searchAuthor = async () => {
     if (!searchQuery.trim()) return;
     
     setLoading(true);
+    setSelectedAuthor(searchQuery);
+    
     try {
-      // 後端正確路由：/api/authors/{author_name}/articles
-      const response = await fetch(`${API_BASE}/authors/${encodeURIComponent(searchQuery)}/articles`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      // 先嘗試查詢作者
+      const result = await searchAuthorInternal(searchQuery);
+      
+      if (result.found && result.articles.length > 0) {
+        // 找到作者且有文章，直接顯示
+        setArticles(result.articles);
+      } else {
+        // 沒找到作者或沒有文章，觸發爬蟲
+        setCrawlStatus('未找到該作者，正在啟動爬蟲...');
+        const crawlSuccess = await triggerCrawl(searchQuery);
+        
+        if (crawlSuccess) {
+          // 爬蟲完成後重新查詢
+          const newResult = await searchAuthorInternal(searchQuery);
+          setArticles(newResult.articles);
+        } else {
+          // 如果爬蟲失敗或正在運行中，嘗試再次查詢
+          setTimeout(async () => {
+            const retryResult = await searchAuthorInternal(searchQuery);
+            setArticles(retryResult.articles);
+          }, 2000);
+        }
       }
-      const data = await response.json();
-      setArticles(data.articles || []);
-      setSelectedAuthor(searchQuery);
     } catch (error) {
-      console.error('Error searching author:', error);
+      console.error('Error in searchAuthor:', error);
+      setArticles([]);
     } finally {
       setLoading(false);
     }
@@ -171,17 +283,35 @@ export default function Home() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 onKeyPress={(e) => e.key === 'Enter' && searchAuthor()}
+                disabled={crawling || loading}
               />
             </div>
             <button
               onClick={searchAuthor}
-              disabled={loading}
+              disabled={loading || crawling}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
               <Search className="h-4 w-4" />
-              {loading ? '搜尋中...' : '搜尋'}
+              {crawling ? '爬蟲中...' : loading ? '搜尋中...' : '搜尋'}
             </button>
           </div>
+          {/* 爬蟲狀態顯示 */}
+          {crawlStatus && (
+            <div className={`mt-4 p-3 rounded-md ${
+              crawlStatus.includes('失敗') 
+                ? 'bg-red-50 border border-red-200 text-red-800'
+                : crawlStatus.includes('完成')
+                ? 'bg-green-50 border border-green-200 text-green-800'
+                : 'bg-blue-50 border border-blue-200 text-blue-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                {crawling && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                )}
+                <span className="text-sm">{crawlStatus}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Authors List */}

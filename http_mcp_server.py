@@ -9,6 +9,7 @@ from loguru import logger
 
 from database import db_manager
 from models import PTTArticle, AuthorProfile, CrawlLog
+from crawl_orchestrator import CrawlOrchestrator
 
 app = FastAPI(title="PTT Stock Crawler API", version="1.0.0")
 
@@ -20,6 +21,77 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 爬蟲狀態管理器 - 防止並發執行
+class CrawlManager:
+    """管理爬蟲任務，防止並發執行."""
+    
+    def __init__(self):
+        self.lock = asyncio.Lock()
+        self.is_running = False
+        self.current_task = None
+        self.current_author = None
+        self.start_time = None
+        self.status = "idle"  # idle, running, completed, error
+    
+    async def start_crawl(self, author: str) -> Dict[str, Any]:
+        """啟動爬蟲任務（帶鎖機制）."""
+        # 檢查是否正在運行
+        if self.is_running:
+            raise HTTPException(
+                status_code=409, 
+                detail={
+                    "error": "Crawler is already running",
+                    "current_author": self.current_author,
+                    "start_time": self.start_time.isoformat() if self.start_time else None
+                }
+            )
+        
+        # 獲取鎖
+        async with self.lock:
+            if self.is_running:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Crawler is already running"
+                )
+            
+            # 設置狀態
+            self.is_running = True
+            self.current_author = author
+            self.start_time = datetime.now()
+            self.status = "running"
+            
+            try:
+                # 創建協調器並執行爬蟲
+                orchestrator = CrawlOrchestrator()
+                result = await orchestrator.crawl_single_author(author)
+                
+                # 更新狀態
+                self.status = result.get("status", "completed")
+                return result
+                
+            except Exception as e:
+                logger.error(f"Crawl task failed: {e}")
+                self.status = "error"
+                raise HTTPException(status_code=500, detail=str(e))
+            finally:
+                # 釋放鎖並重置狀態
+                self.is_running = False
+                self.current_author = None
+                self.start_time = None
+    
+    def get_status(self) -> Dict[str, Any]:
+        """獲取當前爬蟲狀態."""
+        return {
+            "is_running": self.is_running,
+            "status": self.status,
+            "current_author": self.current_author,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "elapsed_seconds": (datetime.now() - self.start_time).total_seconds() if self.start_time else None
+        }
+
+# 創建全局爬蟲管理器
+crawl_manager = CrawlManager()
 
 @app.get("/")
 async def root():
@@ -232,6 +304,35 @@ async def get_stats():
             }
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/crawl/author/{author_name}")
+async def crawl_author(author_name: str):
+    """爬取指定作者的文章."""
+    try:
+        logger.info(f"Received crawl request for author: {author_name}")
+        
+        # 啟動爬蟲任務（帶並發控制）
+        result = await crawl_manager.start_crawl(author_name)
+        
+        return {
+            "message": f"Crawl completed for author: {author_name}",
+            "result": result
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error crawling author {author_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/crawl/status")
+async def get_crawl_status():
+    """查詢爬蟲狀態."""
+    try:
+        status = crawl_manager.get_status()
+        return status
+    except Exception as e:
+        logger.error(f"Error getting crawl status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

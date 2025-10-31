@@ -18,6 +18,8 @@
 - 🧠 **MCP協議**: 完整的Model Context Protocol支援，可與AI助手整合
 - 🔧 **系統檢測**: 自動檢測硬體配置並推薦適合的Qwen模型
 - 🎯 **動態爬蟲**: 支援指定單一作者進行爬蟲分析
+- 🔒 **並發控制**: 使用鎖機制防止多個爬蟲任務同時執行，避免系統卡住
+- 🌐 **前端自動爬蟲**: 前端搜索時如找不到作者，自動觸發爬蟲和分析
 
 ## 系統架構
 
@@ -155,6 +157,26 @@ print(f"推薦模型: {system_info['recommended_model']}")
 - `GET /authors` - 取得所有作者
 - `GET /authors/{author_name}/articles` - 取得特定作者的文章
 - `GET /stats` - 取得統計資料
+- `POST /api/crawl/author/{author_name}` - 動態爬取指定作者的文章（帶並發控制）
+- `GET /api/crawl/status` - 查詢爬蟲運行狀態
+
+#### 動態爬蟲API使用範例
+
+```bash
+# 爬取指定作者
+curl -X POST http://localhost:8000/api/crawl/author/mrp
+
+# 查詢爬蟲狀態
+curl http://localhost:8000/api/crawl/status
+
+# 如果爬蟲正在運行，會返回 409 狀態碼和當前任務信息
+```
+
+#### 前端自動爬蟲
+
+前端搜索功能會自動檢查作者是否存在：
+- 如果找到作者且有文章 → 直接顯示
+- 如果沒找到 → 自動觸發爬蟲API，顯示進度，完成後自動刷新結果
 
 ### 資料庫查詢
 
@@ -284,7 +306,15 @@ MIT License
 
 ## 更新日誌
 
-### v3.0.0 (最新)
+### v3.1.0 (最新)
+- 新增動態爬蟲API (`POST /api/crawl/author/{author_name}`)
+- 實現並發控制機制，防止多個爬蟲任務同時執行
+- 新增爬蟲狀態查詢API (`GET /api/crawl/status`)
+- 前端搜索功能增強：找不到作者時自動觸發爬蟲
+- 前端添加爬蟲進度顯示和狀態提示
+- 優化用戶體驗，支持實時查詢和自動刷新
+
+### v3.0.0
 - 實現Model Context Protocol，可與AI助手整合
 - 自動檢測CPU、GPU、記憶體、硬碟並推薦適合的Qwen模型
 - 支援指定單一作者進行爬蟲，避免一次爬太多人
