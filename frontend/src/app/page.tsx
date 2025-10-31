@@ -324,8 +324,8 @@ export default function Home() {
                   key={author.author}
                   className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
                   onClick={() => {
+                    // 僅填入搜尋欄，不自動調出文章
                     setSearchQuery(author.author);
-                    searchAuthor();
                   }}
                 >
                   <div className="flex items-center gap-2">
